@@ -1,5 +1,5 @@
 /**
- * Custom error types for opencode-ag-auth plugin.
+ * Custom error types for opencode-auth-ag-new plugin.
  *
  * Ported from LLM-API-Key-Proxy for robust error handling.
  */

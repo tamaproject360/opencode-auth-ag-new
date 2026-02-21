@@ -23,6 +23,12 @@ import {
   cleanJSONSchemaForAntigravity,
   createSyntheticErrorResponse,
   recursivelyParseJsonStrings,
+  isEmptyResponseBody,
+  createStreamingChunkCounter,
+  isMeaningfulSseLine,
+  detectToolIdMismatches,
+  assignToolIdsToContents,
+  matchResponseIdsToContents,
 } from "./request-helpers";
 import { deduplicateThinkingText, createThoughtBuffer } from "./core/streaming/transformer";
 
@@ -1935,5 +1941,420 @@ describe("recursivelyParseJsonStrings", () => {
         },
       },
     });
+  });
+});
+
+// ============================================================================
+// Additional tests for uncovered functions (Task 26)
+// ============================================================================
+
+describe("cleanJSONSchemaForAntigravity — $ref conversion", () => {
+  it("converts $ref to description hint with type=object", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        input: { $ref: "#/$defs/InputType" },
+      },
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.properties.input.type).toBe("object");
+    expect(result.properties.input.description).toContain("InputType");
+    expect(result.properties.input.$ref).toBeUndefined();
+  });
+
+  it("handles $ref with simple name (no slash)", () => {
+    const schema = {
+      properties: {
+        item: { $ref: "MyType" },
+      },
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.properties.item.description).toContain("MyType");
+  });
+
+  it("handles $ref combined with existing description", () => {
+    const schema = {
+      properties: {
+        item: {
+          description: "The item",
+          $ref: "#/$defs/ItemType",
+        },
+      },
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.properties.item.description).toContain("The item");
+    expect(result.properties.item.description).toContain("ItemType");
+  });
+});
+
+describe("cleanJSONSchemaForAntigravity — allOf merging", () => {
+  it("merges allOf with properties into parent object", () => {
+    const schema = {
+      type: "object",
+      allOf: [
+        { properties: { a: { type: "string" } }, required: ["a"] },
+        { properties: { b: { type: "number" } } },
+      ],
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.allOf).toBeUndefined();
+    expect(result.properties.a).toBeDefined();
+    expect(result.properties.b).toBeDefined();
+    expect(result.required).toContain("a");
+  });
+
+  it("merges allOf with non-object items gracefully (skips null/non-object)", () => {
+    const schema = {
+      allOf: [
+        null,
+        { properties: { x: { type: "string" } } },
+      ],
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.properties?.x).toBeDefined();
+  });
+
+  it("merges required arrays from multiple allOf items without duplicates", () => {
+    const schema = {
+      type: "object",
+      allOf: [
+        { properties: { a: { type: "string" } }, required: ["a"] },
+        { properties: { b: { type: "number" } }, required: ["a", "b"] },
+      ],
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    // "a" should appear only once
+    expect(result.required.filter((r: string) => r === "a").length).toBe(1);
+    expect(result.required).toContain("b");
+  });
+});
+
+describe("cleanJSONSchemaForAntigravity — additionalProperties hints", () => {
+  it("adds hint when additionalProperties=false", () => {
+    const schema = {
+      type: "object",
+      properties: { name: { type: "string" } },
+      additionalProperties: false,
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.description).toContain("No extra properties");
+  });
+
+  it("does not add hint when additionalProperties is not false", () => {
+    const schema = {
+      type: "object",
+      properties: { name: { type: "string" } },
+      additionalProperties: true,
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.description ?? "").not.toContain("No extra properties");
+  });
+});
+
+describe("cleanJSONSchemaForAntigravity — constraints moved to description", () => {
+  it("moves minLength constraint to description hint", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        name: { type: "string", minLength: 3 },
+      },
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.properties.name.description).toContain("minLength");
+    expect(result.properties.name.description).toContain("3");
+  });
+
+  it("moves minLength and maxLength to description", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        name: { type: "string", minLength: 3, maxLength: 50 },
+      },
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    expect(result.properties.name.description).toContain("minLength");
+    expect(result.properties.name.description).toContain("maxLength");
+  });
+
+  it("does not alter object-valued constraints", () => {
+    // Object-valued constraints (like additionalProperties: {type:...}) should not be moved
+    const schema = {
+      type: "object",
+      properties: {
+        data: {
+          type: "object",
+          additionalProperties: { type: "string" },
+        },
+      },
+    };
+    const result = cleanJSONSchemaForAntigravity(schema);
+    // Should not throw and should produce valid output
+    expect(result.properties.data).toBeDefined();
+  });
+});
+
+describe("isEmptyResponseBody", () => {
+  it("returns true for empty string", () => {
+    expect(isEmptyResponseBody("")).toBe(true);
+    expect(isEmptyResponseBody("   ")).toBe(true);
+  });
+
+  it("returns true for invalid JSON", () => {
+    expect(isEmptyResponseBody("not json")).toBe(true);
+  });
+
+  it("returns true when candidates array is empty", () => {
+    const body = JSON.stringify({ candidates: [] });
+    expect(isEmptyResponseBody(body)).toBe(true);
+  });
+
+  it("returns true when candidates is not an array", () => {
+    const body = JSON.stringify({ candidates: null });
+    expect(isEmptyResponseBody(body)).toBe(true);
+  });
+
+  it("returns true when first candidate is null", () => {
+    const body = JSON.stringify({ candidates: [null] });
+    expect(isEmptyResponseBody(body)).toBe(true);
+  });
+
+  it("returns true when content is missing from candidate", () => {
+    const body = JSON.stringify({ candidates: [{}] });
+    expect(isEmptyResponseBody(body)).toBe(true);
+  });
+
+  it("returns false when candidates has valid content", () => {
+    const body = JSON.stringify({
+      candidates: [
+        {
+          content: {
+            parts: [{ text: "Hello" }],
+            role: "model",
+          },
+        },
+      ],
+    });
+    expect(isEmptyResponseBody(body)).toBe(false);
+  });
+
+  it("returns false for non-candidates JSON (e.g. Claude format)", () => {
+    const body = JSON.stringify({ content: [{ type: "text", text: "Hi" }] });
+    expect(isEmptyResponseBody(body)).toBe(false);
+  });
+});
+
+describe("createStreamingChunkCounter", () => {
+  it("starts at count=0 with no content", () => {
+    const counter = createStreamingChunkCounter();
+    expect(counter.getCount()).toBe(0);
+    expect(counter.hasContent()).toBe(false);
+  });
+
+  it("increments count and reflects in hasContent", () => {
+    const counter = createStreamingChunkCounter();
+    counter.increment();
+    counter.increment();
+    expect(counter.getCount()).toBe(2);
+    expect(counter.hasContent()).toBe(true);
+  });
+});
+
+describe("isMeaningfulSseLine", () => {
+  it("returns false for non-data lines", () => {
+    expect(isMeaningfulSseLine("")).toBe(false);
+    expect(isMeaningfulSseLine("event: message")).toBe(false);
+    expect(isMeaningfulSseLine(": keep-alive")).toBe(false);
+  });
+
+  it("returns false for [DONE] sentinel", () => {
+    expect(isMeaningfulSseLine("data: [DONE]")).toBe(false);
+  });
+
+  it("returns false for empty data", () => {
+    expect(isMeaningfulSseLine("data: ")).toBe(false);
+    expect(isMeaningfulSseLine("data:")).toBe(false);
+  });
+
+  it("returns true for data lines with valid candidate content", () => {
+    const payload = JSON.stringify({
+      candidates: [
+        {
+          content: {
+            parts: [{ text: "Hello world" }],
+            role: "model",
+          },
+        },
+      ],
+    });
+    expect(isMeaningfulSseLine(`data: ${payload}`)).toBe(true);
+  });
+
+  it("returns false for data lines with non-meaningful content", () => {
+    // Valid JSON but no meaningful candidates
+    expect(isMeaningfulSseLine('data: {"type":"content_block_delta"}')).toBe(false);
+    // Non-JSON data
+    expect(isMeaningfulSseLine("data: hello")).toBe(false);
+  });
+});
+
+describe("detectToolIdMismatches", () => {
+  it("returns no mismatches when all calls have matching responses", () => {
+    const contents = [
+      {
+        role: "model",
+        parts: [{ functionCall: { id: "call-1", name: "tool1", args: {} } }],
+      },
+      {
+        role: "user",
+        parts: [{ functionResponse: { id: "call-1", name: "tool1", response: {} } }],
+      },
+    ];
+    const result = detectToolIdMismatches(contents);
+    expect(result.hasMismatches).toBe(false);
+    expect(result.missingIds).toEqual([]);
+    expect(result.orphanIds).toEqual([]);
+  });
+
+  it("detects missing response IDs", () => {
+    const contents = [
+      {
+        role: "model",
+        parts: [
+          { functionCall: { id: "call-1", name: "tool1", args: {} } },
+          { functionCall: { id: "call-2", name: "tool2", args: {} } },
+        ],
+      },
+      {
+        role: "user",
+        parts: [{ functionResponse: { id: "call-1", name: "tool1", response: {} } }],
+      },
+    ];
+    const result = detectToolIdMismatches(contents);
+    expect(result.hasMismatches).toBe(true);
+    expect(result.missingIds).toContain("call-2");
+  });
+
+  it("detects orphaned response IDs (no matching call)", () => {
+    const contents = [
+      {
+        role: "user",
+        parts: [{ functionResponse: { id: "orphan-1", name: "tool1", response: {} } }],
+      },
+    ];
+    const result = detectToolIdMismatches(contents);
+    expect(result.hasMismatches).toBe(true);
+    expect(result.orphanIds).toContain("orphan-1");
+  });
+
+  it("handles contents with no function calls or responses", () => {
+    const contents = [
+      { role: "user", parts: [{ text: "hello" }] },
+      { role: "model", parts: [{ text: "world" }] },
+    ];
+    const result = detectToolIdMismatches(contents);
+    expect(result.hasMismatches).toBe(false);
+    expect(result.expectedIds).toEqual([]);
+    expect(result.foundIds).toEqual([]);
+  });
+
+  it("handles content with missing parts", () => {
+    const contents = [{ role: "user" }, { role: "model", parts: null }];
+    const result = detectToolIdMismatches(contents);
+    expect(result.hasMismatches).toBe(false);
+  });
+});
+
+describe("assignToolIdsToContents", () => {
+  it("assigns IDs to functionCalls without IDs", () => {
+    const contents = [
+      {
+        role: "model",
+        parts: [
+          { functionCall: { name: "search", args: { q: "test" } } },
+          { functionCall: { name: "read", args: { path: "/foo" } } },
+        ],
+      },
+    ];
+    const { contents: result, pendingCallIdsByName, toolCallCounter } = assignToolIdsToContents(contents);
+    expect(toolCallCounter).toBe(2);
+    expect(result[0].parts[0].functionCall.id).toBe("tool-call-1");
+    expect(result[0].parts[1].functionCall.id).toBe("tool-call-2");
+    expect(pendingCallIdsByName.get("search")).toEqual(["tool-call-1"]);
+    expect(pendingCallIdsByName.get("read")).toEqual(["tool-call-2"]);
+  });
+
+  it("preserves existing IDs on functionCalls", () => {
+    const contents = [
+      {
+        role: "model",
+        parts: [
+          { functionCall: { id: "existing-id", name: "tool1", args: {} } },
+        ],
+      },
+    ];
+    const { contents: result } = assignToolIdsToContents(contents);
+    expect(result[0].parts[0].functionCall.id).toBe("existing-id");
+  });
+
+  it("returns empty map for non-array input", () => {
+    const { contents: result, toolCallCounter } = assignToolIdsToContents(null as any);
+    expect(toolCallCounter).toBe(0);
+    expect(result).toBeNull();
+  });
+
+  it("handles content without parts", () => {
+    const contents = [
+      { role: "user", parts: null },
+      { role: "model" },
+    ];
+    const { contents: result } = assignToolIdsToContents(contents);
+    expect(result[0].parts).toBeNull();
+  });
+});
+
+describe("matchResponseIdsToContents", () => {
+  it("assigns IDs to functionResponses matching pending calls", () => {
+    const pendingCallIdsByName = new Map([
+      ["search", ["tool-call-1"]],
+      ["read", ["tool-call-2"]],
+    ]);
+    const contents = [
+      {
+        role: "user",
+        parts: [
+          { functionResponse: { name: "search", response: { result: "ok" } } },
+          { functionResponse: { name: "read", response: { content: "data" } } },
+        ],
+      },
+    ];
+    const result = matchResponseIdsToContents(contents, pendingCallIdsByName);
+    expect(result[0].parts[0].functionResponse.id).toBe("tool-call-1");
+    expect(result[0].parts[1].functionResponse.id).toBe("tool-call-2");
+    // Queue should be depleted
+    expect(pendingCallIdsByName.get("search")).toEqual([]);
+  });
+
+  it("preserves existing IDs on functionResponses", () => {
+    const pending = new Map([["tool1", ["call-99"]]]);
+    const contents = [
+      {
+        role: "user",
+        parts: [{ functionResponse: { id: "already-set", name: "tool1", response: {} } }],
+      },
+    ];
+    const result = matchResponseIdsToContents(contents, pending);
+    expect(result[0].parts[0].functionResponse.id).toBe("already-set");
+  });
+
+  it("returns non-array input as-is", () => {
+    const result = matchResponseIdsToContents(null as any, new Map());
+    expect(result).toBeNull();
+  });
+
+  it("handles content without parts gracefully", () => {
+    const pending = new Map<string, string[]>();
+    const contents = [{ role: "user" }, { role: "model", parts: null }];
+    const result = matchResponseIdsToContents(contents, pending);
+    expect(result[0].role).toBe("user");
   });
 });

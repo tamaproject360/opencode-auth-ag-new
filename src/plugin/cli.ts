@@ -198,6 +198,9 @@ export async function promptLoginMode(
         const result = await updateOpencodeConfig();
         if (result.success) {
           console.log(`\n✓ Models configured in ${result.configPath}\n`);
+          if (result.pluginReminder) {
+            console.log(`⚠ ${result.pluginReminder}\n`);
+          }
         } else {
           console.log(`\n✗ Failed to configure models: ${result.error}\n`);
         }

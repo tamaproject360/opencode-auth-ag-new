@@ -1,5 +1,5 @@
 /**
- * Cache module for opencode-ag-auth plugin.
+ * Cache module for opencode-auth-ag-new plugin.
  */
 
 export { SignatureCache, createSignatureCache } from "./signature-cache";

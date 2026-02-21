@@ -1,5 +1,5 @@
 /**
- * Configuration module for opencode-ag-auth plugin.
+ * Configuration module for opencode-auth-ag-new plugin.
  *
  * @example
  * ```typescript

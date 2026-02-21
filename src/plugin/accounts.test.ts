@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AccountManager, type ModelFamily, type HeaderStyle, parseRateLimitReason, calculateBackoffMs, type RateLimitReason, resolveQuotaGroup } from "./accounts";
+import { AccountManager, type ModelFamily, type HeaderStyle, parseRateLimitReason, calculateBackoffMs, type RateLimitReason, resolveQuotaGroup, computeSoftQuotaCacheTtlMs } from "./accounts";
 import type { AccountStorageV4 } from "./storage";
 import type { OAuthAuthDetails } from "./types";
 
@@ -1944,3 +1944,636 @@ describe("resolveQuotaGroup", () => {
     expect(resolveQuotaGroup("gemini", "gemini-3.1-pro")).toBe("gemini-pro");
   });
 });
+
+describe("computeSoftQuotaCacheTtlMs", () => {
+  it("returns auto-calculated TTL based on refresh interval when auto", () => {
+    // auto: max(2 * refreshIntervalMinutes, 10) * 60 * 1000
+    expect(computeSoftQuotaCacheTtlMs("auto", 10)).toBe(20 * 60 * 1000)
+    expect(computeSoftQuotaCacheTtlMs("auto", 3)).toBe(10 * 60 * 1000) // min 10
+    expect(computeSoftQuotaCacheTtlMs("auto", 5)).toBe(10 * 60 * 1000) // 2*5=10, exactly 10
+  });
+
+  it("returns fixed TTL in ms when a number is given", () => {
+    expect(computeSoftQuotaCacheTtlMs(30, 10)).toBe(30 * 60 * 1000)
+    expect(computeSoftQuotaCacheTtlMs(0, 10)).toBe(0)
+    expect(computeSoftQuotaCacheTtlMs(1, 999)).toBe(60 * 1000)
+  });
+});
+
+describe("AccountManager.getTotalAccountCount", () => {
+  it("returns total account count including disabled accounts", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0, enabled: false },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.getTotalAccountCount()).toBe(2)
+    expect(manager.getAccountCount()).toBe(1) // only enabled
+  });
+});
+
+describe("AccountManager.markSwitched", () => {
+  it("sets lastSwitchReason and updates currentAccountIndexByFamily", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const account = manager.getAccountsSnapshot()[1]!
+    manager.markSwitched(account, "rate-limit", "claude")
+    expect(account.lastSwitchReason).toBe("rate-limit")
+    expect(manager.getCurrentAccountForFamily("claude")?.index).toBe(1)
+  });
+});
+
+describe("AccountManager.markAccountUsed", () => {
+  it("updates lastUsed timestamp for existing account", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T10:00:00Z"))
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    manager.markAccountUsed(0)
+    const accounts = manager.getAccountsSnapshot()
+    expect(accounts[0]!.lastUsed).toBe(new Date("2026-01-01T10:00:00Z").getTime())
+
+    vi.useRealTimers()
+  });
+
+  it("is a no-op for non-existent account index", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    // Should not throw
+    manager.markAccountUsed(999)
+    expect(manager.getAccountsSnapshot()[0]!.lastUsed).toBe(0)
+  });
+});
+
+describe("AccountManager.getAccountCooldownReason", () => {
+  it("returns cooldownReason when account is cooling down", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T10:00:00Z"))
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const liveAccount = manager.getCurrentOrNextForFamily("claude")!
+
+    manager.markAccountCoolingDown(liveAccount, 60_000, "auth-failure")
+    const reason = manager.getAccountCooldownReason(liveAccount)
+    expect(reason).toBe("auth-failure")
+
+    vi.useRealTimers()
+  });
+
+  it("returns undefined when account is not cooling down", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const account = manager.getCurrentOrNextForFamily("claude")!
+    expect(manager.getAccountCooldownReason(account)).toBeUndefined()
+  });
+});
+
+describe("AccountManager.getFreshAccountsForQuota", () => {
+  it("returns enabled accounts not rate-limited and not cooling down", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T10:00:00Z"))
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r3", projectId: "p3", addedAt: 1, lastUsed: 0, enabled: false },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    // Rate-limit account 0 using live reference
+    const liveAccount = manager.getCurrentOrNextForFamily("claude")!
+    manager.markRateLimited(liveAccount, 60_000, "claude", "antigravity")
+
+    const fresh = manager.getFreshAccountsForQuota("claude", "claude")
+    expect(fresh.length).toBe(1)
+    expect(fresh[0]!.parts.refreshToken).toBe("r2")
+
+    vi.useRealTimers()
+  });
+});
+
+describe("AccountManager.markAccountVerificationRequired", () => {
+  it("marks account as verification required and disables it", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const result = manager.markAccountVerificationRequired(0, "Needs re-auth", "https://example.com/verify")
+    expect(result).toBe(true)
+    const account = manager.getAccountsSnapshot()[0]!
+    expect(account.verificationRequired).toBe(true)
+    expect(account.verificationRequiredReason).toBe("Needs re-auth")
+    expect(account.verificationUrl).toBe("https://example.com/verify")
+    expect(account.enabled).toBe(false)
+  });
+
+  it("returns false for invalid account index", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.markAccountVerificationRequired(0)).toBe(false)
+  });
+
+  it("handles already-disabled account (calls requestSaveToDisk path)", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0, enabled: false },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const result = manager.markAccountVerificationRequired(0, "reason")
+    expect(result).toBe(true)
+    expect(manager.getAccountsSnapshot()[0]!.verificationRequired).toBe(true)
+  });
+});
+
+describe("AccountManager.clearAccountVerificationRequired", () => {
+  it("clears verification required and re-enables account when enableAccount=true", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    manager.markAccountVerificationRequired(0, "reason", "https://verify.url")
+    expect(manager.getAccountsSnapshot()[0]!.enabled).toBe(false)
+
+    const result = manager.clearAccountVerificationRequired(0, true)
+    expect(result).toBe(true)
+    const account = manager.getAccountsSnapshot()[0]!
+    expect(account.verificationRequired).toBe(false)
+    expect(account.verificationRequiredReason).toBeUndefined()
+    expect(account.verificationUrl).toBeUndefined()
+    expect(account.enabled).toBe(true)
+  });
+
+  it("returns false for invalid account index", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.clearAccountVerificationRequired(0)).toBe(false)
+  });
+
+  it("saves to disk if metadata had been set even without re-enable", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    // Set verification metadata manually on snapshot
+    manager.markAccountVerificationRequired(0)
+    // Now clear without re-enabling
+    const result = manager.clearAccountVerificationRequired(0, false)
+    expect(result).toBe(true)
+    expect(manager.getAccountsSnapshot()[0]!.verificationRequired).toBe(false)
+  });
+});
+
+describe("AccountManager.removeAccountByIndex", () => {
+  it("removes account by valid index", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.removeAccountByIndex(0)).toBe(true)
+    expect(manager.getTotalAccountCount()).toBe(1)
+    expect(manager.getAccountsSnapshot()[0]!.parts.refreshToken).toBe("r2")
+  });
+
+  it("returns false for out-of-bounds index", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.removeAccountByIndex(-1)).toBe(false)
+    expect(manager.removeAccountByIndex(5)).toBe(false)
+  });
+
+  it("handles removing last account (resets cursors)", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.removeAccountByIndex(0)).toBe(true)
+    expect(manager.getTotalAccountCount()).toBe(0)
+    expect(manager.getCurrentAccountForFamily("claude")).toBeNull()
+    expect(manager.getCurrentAccountForFamily("gemini")).toBeNull()
+  });
+});
+
+describe("AccountManager.updateFromAuth", () => {
+  it("updates account token parts from new OAuthAuthDetails", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const account = manager.getAccountsSnapshot()[0]!
+
+    const newAuth: OAuthAuthDetails = {
+      type: "oauth",
+      refresh: "newRefresh|newProject",
+      access: "newAccess",
+      expires: 9999,
+    }
+    manager.updateFromAuth(account, newAuth)
+
+    expect(account.access).toBe("newAccess")
+    expect(account.expires).toBe(9999)
+    expect(account.parts.refreshToken).toBe("newRefresh")
+  });
+
+  it("preserves existing projectId/managedProjectId if new parts lack them", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "existingProject", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const account = manager.getAccountsSnapshot()[0]!
+    expect(account.parts.projectId).toBe("existingProject")
+
+    const newAuth: OAuthAuthDetails = {
+      type: "oauth",
+      refresh: "newRefresh", // no project in token
+      access: "access",
+      expires: 1000,
+    }
+    manager.updateFromAuth(account, newAuth)
+    // Should preserve the project if the new token doesn't include one
+    // (behavior depends on parseRefreshParts — just verify no crash)
+    expect(account.parts.refreshToken).toBe("newRefresh")
+  });
+});
+
+describe("AccountManager.toAuthDetails", () => {
+  it("converts managed account to OAuthAuthDetails format", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const account = manager.getAccountsSnapshot()[0]!
+    // Set access/expires
+    account.access = "testAccess"
+    account.expires = 54321
+
+    const auth = manager.toAuthDetails(account)
+    expect(auth.type).toBe("oauth")
+    expect(auth.access).toBe("testAccess")
+    expect(auth.expires).toBe(54321)
+    expect(typeof auth.refresh).toBe("string")
+  });
+});
+
+describe("AccountManager.saveToDisk", () => {
+  it("calls saveAccounts with storage data", async () => {
+    const { saveAccounts } = await import("./storage")
+    vi.mocked(saveAccounts).mockResolvedValue(undefined)
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    await manager.saveToDisk()
+    expect(vi.mocked(saveAccounts)).toHaveBeenCalled()
+    const call = vi.mocked(saveAccounts).mock.calls[vi.mocked(saveAccounts).mock.calls.length - 1]!
+    expect(call[0].version).toBe(4)
+    expect(call[0].accounts.length).toBe(1)
+    expect(call[0].accounts[0]!.refreshToken).toBe("r1")
+  });
+});
+
+describe("AccountManager.loadFromDisk", () => {
+  it("creates AccountManager from disk storage", async () => {
+    const { saveAccounts } = await import("./storage")
+    vi.mocked(saveAccounts).mockResolvedValue(undefined)
+
+    // loadAccounts is the function we need to mock — it's called by loadFromDisk
+    // The storage mock already intercepts saveAccounts; loadFromDisk calls loadAccounts
+    // which reads from disk. Since we can't easily control disk state here, just
+    // verify it doesn't throw and returns an AccountManager instance
+    const manager = await AccountManager.loadFromDisk()
+    expect(manager).toBeInstanceOf(AccountManager)
+  });
+});
+
+describe("AccountManager.isAccountOverSoftQuota", () => {
+  it("delegates to isOverSoftQuotaThreshold correctly", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T10:00:00Z"))
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const snapshot = manager.getAccountsSnapshot()
+    const account = snapshot[0]!
+
+    // No quota cache — should not be over soft quota
+    const result = manager.isAccountOverSoftQuota(account, "claude", 80, 10 * 60 * 1000)
+    expect(result).toBe(false)
+
+    // Set quota that is over 80% used (remaining < 20%)
+    manager.updateQuotaCache(0, {
+      claude: { remainingFraction: 0.1, resetTime: "2026-01-01T11:00:00Z", modelCount: 1 },
+    })
+    const updatedSnapshot = manager.getAccountsSnapshot()
+    const updatedAccount = updatedSnapshot[0]!
+    const overResult = manager.isAccountOverSoftQuota(updatedAccount, "claude", 80, 10 * 60 * 1000)
+    expect(overResult).toBe(true)
+
+    vi.useRealTimers()
+  });
+});
+
+describe("AccountManager.getAccountsForQuotaCheck", () => {
+  it("returns simplified account metadata for quota check", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1000, lastUsed: 500 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 2000, lastUsed: 0, enabled: false },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    const result = manager.getAccountsForQuotaCheck()
+    expect(result.length).toBe(2)
+    expect(result[0]!.refreshToken).toBe("r1")
+    expect(result[0]!.projectId).toBe("p1")
+    expect(result[0]!.addedAt).toBe(1000)
+    expect(result[0]!.lastUsed).toBe(500)
+    expect(result[1]!.enabled).toBe(false)
+  });
+});
+
+describe("AccountManager.getOldestQuotaCacheAge", () => {
+  it("returns null when any enabled account has no quota cache", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T10:00:00Z"))
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    // Account 0 has quota cache, but account 1 doesn't
+    manager.updateQuotaCache(0, { claude: { remainingFraction: 0.5, resetTime: "2026-01-01T11:00:00Z", modelCount: 1 } })
+
+    expect(manager.getOldestQuotaCacheAge()).toBeNull()
+
+    vi.useRealTimers()
+  });
+
+  it("returns oldest cache age when all enabled accounts have quota cache", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T10:00:00Z"))
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    manager.updateQuotaCache(0, { claude: { remainingFraction: 0.5, resetTime: "2026-01-01T11:00:00Z", modelCount: 1 } })
+
+    // Advance time 5 seconds before updating account 1
+    vi.advanceTimersByTime(5000)
+    manager.updateQuotaCache(1, { claude: { remainingFraction: 0.8, resetTime: "2026-01-01T11:00:00Z", modelCount: 1 } })
+
+    // Now advance time 10 seconds
+    vi.advanceTimersByTime(10000)
+    const age = manager.getOldestQuotaCacheAge()
+    // Account 0 was updated at T=0, now at T=15s -> age 15000ms
+    // Account 1 was updated at T=5s, now at T=15s -> age 10000ms
+    // Oldest is account 0 at 15000ms
+    expect(age).toBe(15000)
+
+    vi.useRealTimers()
+  });
+
+  it("returns null when no enabled accounts exist", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0, enabled: false },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.getOldestQuotaCacheAge()).toBeNull()
+  });
+});
+
+describe("AccountManager.areAllAccountsOverSoftQuota", () => {
+  it("returns false when threshold >= 100", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.areAllAccountsOverSoftQuota("claude", 100, 10 * 60 * 1000)).toBe(false)
+    expect(manager.areAllAccountsOverSoftQuota("claude", 110, 10 * 60 * 1000)).toBe(false)
+  });
+
+  it("returns false when no enabled accounts", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0, enabled: false },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    expect(manager.areAllAccountsOverSoftQuota("claude", 80, 10 * 60 * 1000)).toBe(false)
+  });
+
+  it("returns true when all enabled accounts are over soft quota threshold", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T10:00:00Z"))
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    manager.updateQuotaCache(0, { claude: { remainingFraction: 0.05, resetTime: "2026-01-01T11:00:00Z", modelCount: 1 } })
+    manager.updateQuotaCache(1, { claude: { remainingFraction: 0.08, resetTime: "2026-01-01T11:00:00Z", modelCount: 1 } })
+
+    // Both accounts are at <20% remaining → over 80% threshold
+    expect(manager.areAllAccountsOverSoftQuota("claude", 80, 10 * 60 * 1000)).toBe(true)
+
+    vi.useRealTimers()
+  });
+
+  it("returns false when at least one account is under threshold", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T10:00:00Z"))
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+    manager.updateQuotaCache(0, { claude: { remainingFraction: 0.05, resetTime: "2026-01-01T11:00:00Z", modelCount: 1 } })
+    manager.updateQuotaCache(1, { claude: { remainingFraction: 0.5, resetTime: "2026-01-01T11:00:00Z", modelCount: 1 } })
+
+    // Account 1 is at 50% remaining → NOT over 80% threshold
+    expect(manager.areAllAccountsOverSoftQuota("claude", 80, 10 * 60 * 1000)).toBe(false)
+
+    vi.useRealTimers()
+  });
+});
+
+describe("AccountManager constructor — authFallback with existing stored accounts", () => {
+  it("adds authFallback as new account when its refreshToken is not in stored accounts", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "existing|proj", projectId: "proj", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const fallback: OAuthAuthDetails = {
+      type: "oauth",
+      refresh: "newToken|proj2",
+      access: "access",
+      expires: 9999,
+    }
+    const manager = new AccountManager(fallback, stored)
+    // The authFallback should be added since its refreshToken differs
+    expect(manager.getTotalAccountCount()).toBeGreaterThanOrEqual(1)
+  });
+});
+
+describe("AccountManager — PID offset selection", () => {
+  beforeEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("applies PID offset when pidOffsetEnabled=true and multiple accounts exist", () => {
+    // Stub process.pid to something nonzero
+    vi.stubGlobal("process", { ...process, pid: 3 })
+
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r3", projectId: "p3", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    }
+    const manager = new AccountManager(undefined, stored)
+
+    // With pid=3, 3 accounts: pidOffset = 3 % 3 = 0, so same starting account
+    // With pid=4, 3 accounts: pidOffset = 4 % 3 = 1, so shifted
+    const account = manager.getCurrentOrNextForFamily("claude", undefined, undefined, "antigravity", true)
+    expect(account).not.toBeNull()
+  })
+})

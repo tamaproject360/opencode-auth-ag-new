@@ -1,5 +1,5 @@
 /**
- * Session recovery module for opencode-ag-auth.
+ * Session recovery module for opencode-auth-ag-new.
  *
  * Provides recovery from:
  * - tool_result_missing: Interrupted tool executions

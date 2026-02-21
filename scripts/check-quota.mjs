@@ -6,7 +6,9 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const CLOUD_CODE_BASE = "https://cloudcode-pa.googleapis.com";
 const USER_AGENT = "antigravity/windows/amd64";
-const FALLBACK_PROJECT_ID = "bamboo-precept-lgxtn";
+// FALLBACK_PROJECT_ID intentionally removed — no hardcoded project IDs.
+// Project is resolved from the account's managedProjectId/projectId fields,
+// or dynamically via loadCodeAssist. Pass --project <id> if needed.
 
 function getDefaultAccountsPath() {
   if (process.platform === "win32") {
@@ -174,7 +176,7 @@ async function run() {
       const accessToken = await refreshAccessToken(account.refreshToken);
       let projectId = await loadProjectId(accessToken);
       if (!projectId) {
-        projectId = account.managedProjectId || account.projectId || FALLBACK_PROJECT_ID;
+        projectId = account.managedProjectId || account.projectId || "";
       }
       console.log(`   project: ${projectId}`);
 

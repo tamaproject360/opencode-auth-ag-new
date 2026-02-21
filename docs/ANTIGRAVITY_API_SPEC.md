@@ -81,7 +81,7 @@ Accept: text/event-stream
 | Claude Sonnet 4.6 | `claude-sonnet-4-6` | Anthropic | ✅ Verified |
 | Claude Sonnet 4.6 Thinking | `claude-sonnet-4-6-thinking` | Anthropic | ✅ Verified |
 | Claude Opus 4.5 Thinking | `claude-opus-4-5-thinking` | Anthropic | ✅ Verified |
-| Claude Opus 4.6 Thinking | `claude-opus-4-6-thinking` | Anthropic | ⏳ Pending |
+| Claude Opus 4.6 Thinking | `claude-opus-4-6-thinking` | Anthropic | ✅ Verified |
 | Gemini 3.1 Pro High | `gemini-3.1-pro-high` | Google | ✅ Verified |
 | Gemini 3.1 Pro Low | `gemini-3.1-pro-low` | Google | ✅ Verified |
 | GPT-OSS 120B Medium | `gpt-oss-120b-medium` | Other | ✅ Verified |

@@ -40,8 +40,35 @@ describe("updateOpencodeConfig", () => {
     // Verify written config has correct structure
     const writtenConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     expect(writtenConfig.$schema).toBe("https://opencode.ai/config.json");
-    expect(writtenConfig.plugin).toContain("opencode-ag-auth@latest");
+    expect(writtenConfig.plugin).toEqual([]);
     expect(writtenConfig.provider?.google?.models).toBeDefined();
+    expect(result.pluginReminder).toContain("set plugin path");
+  });
+
+  test("does not show plugin reminder when local fork path is set", async () => {
+    const existingConfig = {
+      plugin: ["C:/tools/opencode-auth-ag-new"],
+      provider: {},
+    };
+    fs.writeFileSync(configPath, JSON.stringify(existingConfig));
+
+    const result = await updateOpencodeConfig({ configPath });
+
+    expect(result.success).toBe(true);
+    expect(result.pluginReminder).toBeUndefined();
+  });
+
+  test("shows legacy npm reminder when old package entry is present", async () => {
+    const existingConfig = {
+      plugin: ["C:/tools/opencode-auth-ag-new", "opencode-ag-auth@latest"],
+      provider: {},
+    };
+    fs.writeFileSync(configPath, JSON.stringify(existingConfig));
+
+    const result = await updateOpencodeConfig({ configPath });
+
+    expect(result.success).toBe(true);
+    expect(result.pluginReminder).toContain("legacy npm plugin");
   });
 
   test("replaces existing google models with plugin models", async () => {
@@ -130,7 +157,7 @@ describe("updateOpencodeConfig", () => {
     expect(writtenConfig.customSetting).toEqual({ nested: true });
   });
 
-  test("adds plugin to existing plugin array if not present", async () => {
+  test("preserves existing plugin array without injecting package entries", async () => {
     const existingConfig = {
       plugin: ["other-plugin"],
       provider: {},
@@ -142,11 +169,11 @@ describe("updateOpencodeConfig", () => {
     expect(result.success).toBe(true);
 
     const writtenConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    expect(writtenConfig.plugin).toContain("opencode-ag-auth@latest");
     expect(writtenConfig.plugin).toContain("other-plugin");
+    expect(writtenConfig.plugin.length).toBe(1);
   });
 
-  test("does not duplicate plugin if already present", async () => {
+  test("keeps existing plugin entries unchanged", async () => {
     const existingConfig = {
       plugin: ["opencode-ag-auth@latest", "other-plugin"],
       provider: {},
@@ -158,13 +185,13 @@ describe("updateOpencodeConfig", () => {
     expect(result.success).toBe(true);
 
     const writtenConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    const pluginCount = writtenConfig.plugin.filter((p: string) =>
-      p.includes("opencode-ag-auth"),
-    ).length;
-    expect(pluginCount).toBe(1);
+    expect(writtenConfig.plugin).toEqual([
+      "opencode-ag-auth@latest",
+      "other-plugin",
+    ]);
   });
 
-  test("does not duplicate plugin if different version present", async () => {
+  test("keeps existing plugin version entries unchanged", async () => {
     const existingConfig = {
       plugin: ["opencode-ag-auth@beta", "other-plugin"],
       provider: {},
@@ -176,13 +203,9 @@ describe("updateOpencodeConfig", () => {
     expect(result.success).toBe(true);
 
     const writtenConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-    const pluginCount = writtenConfig.plugin.filter((p: string) =>
-      p.includes("opencode-ag-auth"),
-    ).length;
-    // Should not add another version if one exists
-    expect(pluginCount).toBe(1);
-    // Should preserve the existing version
+    expect(writtenConfig.plugin).toContain("other-plugin");
     expect(writtenConfig.plugin).toContain("opencode-ag-auth@beta");
+    expect(writtenConfig.plugin.length).toBe(2);
   });
 
   test("writes config with proper JSON formatting (2-space indent)", async () => {
@@ -241,7 +264,7 @@ describe("updateOpencodeConfig", () => {
 
     const writtenConfig = JSON.parse(fs.readFileSync(jsoncPath, "utf-8"));
     expect(writtenConfig.plugin).toContain("other-plugin");
-    expect(writtenConfig.plugin).toContain("opencode-ag-auth@latest");
+    expect(writtenConfig.plugin.length).toBe(1);
     expect(writtenConfig.provider.google.region).toBe("us-central1");
     expect(
       writtenConfig.provider.google.models["antigravity-gemini-3.1-pro"],

@@ -1,5 +1,5 @@
 /**
- * Configuration loader for opencode-ag-auth plugin.
+ * Configuration loader for opencode-auth-ag-new plugin.
  *
  * Loads config from files with environment variable overrides.
  * Priority (lowest to highest):

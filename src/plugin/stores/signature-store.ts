@@ -1,4 +1,4 @@
-import type { SignatureStore, SignedThinking, ThoughtBuffer } from '../core/streaming/types';
+import type { SignatureStore, SignedThinking } from '../core/streaming/types';
 
 export function createSignatureStore(): SignatureStore {
   const store = new Map<string, SignedThinking>();
@@ -12,18 +12,6 @@ export function createSignatureStore(): SignatureStore {
     delete: (key: string) => {
       store.delete(key);
     },
-  };
-}
-
-export function createThoughtBuffer(): ThoughtBuffer {
-  const buffer = new Map<number, string>();
-
-  return {
-    get: (index: number) => buffer.get(index),
-    set: (index: number, text: string) => {
-      buffer.set(index, text);
-    },
-    clear: () => buffer.clear(),
   };
 }
 

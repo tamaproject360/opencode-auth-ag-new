@@ -14,11 +14,11 @@ This guide provides comprehensive installation instructions for **OpenCode AG Au
 The easiest way to install is by adding the plugin to your `opencode.json` configuration file. OpenCode will automatically fetch the latest version from NPM.
 
 1.  Open your configuration file: `~/.config/opencode/opencode.json`.
-2.  Add `opencode-ag-auth` to the `plugin` array:
+2.  Add `opencode-auth-ag-new` folder path to the `plugin` array:
 
     ```json
     {
-      "plugin": ["opencode-ag-auth@latest"]
+      "plugin": ["/path/ke/opencode-auth-ag-new"]
     }
     ```
 
@@ -30,8 +30,8 @@ If you want to contribute to the plugin or use a local version:
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/andyvandaric/opencode-ag-auth.git
-    cd opencode-ag-auth
+    git clone https://github.com/tamaproject360/opencode-auth-ag-new.git
+    cd opencode-auth-ag-new
     ```
 
 2.  **Install dependencies and build:**
@@ -45,7 +45,7 @@ If you want to contribute to the plugin or use a local version:
 
     ```json
     {
-      "plugin": ["/absolute/path/to/opencode-ag-auth"]
+      \"plugin\": [\"/absolute/path/to/opencode-auth-ag-new\"]
     }
     ```
 
@@ -69,15 +69,15 @@ You can copy-paste this block into your agent's context or system prompt:
 2. **Add Plugin**:
    - Read the existing `opencode.json`.
    - Ensure the "plugin" array exists.
-   - Append "opencode-ag-auth@latest" to the "plugin" array.
+   - Append the local path to the "plugin" array.
    - Example state:
      {
-       "plugin": ["opencode-ag-auth@latest"]
+       "plugin": ["/path/ke/opencode-auth-ag-new"]
      }
 
 3. **Configure Models**:
    - Add the "provider" configuration for "google".
-   - Define models mapping to "opencode-ag-auth" capabilities.
+   - Define models mapping to "opencode-auth-ag-new" capabilities.
    - Use the standard model configuration provided in the README.
 
 4. **Verify Installation**:
@@ -99,7 +99,7 @@ const configPath = path.join(os.homedir(), '.config', 'opencode', 'opencode.json
 
 try {
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  const hasPlugin = config.plugin.some(p => p.includes('opencode-ag-auth'));
+  const hasPlugin = config.plugin.some(p => p.includes('opencode-auth-ag-new'));
   
   if (hasPlugin) {
     console.log('✅ OpenCode AG Auth plugin is configured.');

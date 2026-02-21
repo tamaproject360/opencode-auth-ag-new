@@ -82,22 +82,78 @@ No linter or formatter is configured. Style is enforced by convention (see below
 
 ```
 src/
-├── plugin.ts                # Main entry, fetch interceptor
-├── constants.ts             # Endpoints, headers, API config, system prompts
-├── antigravity/oauth.ts     # OAuth token exchange
+├── index.ts                       # Public exports (plugin + oauth)
+├── plugin.ts                      # Main entry, fetch interceptor (4900+ lines)
+├── constants.ts                   # Endpoints, headers, API config, system prompts
+├── shims.d.ts                     # TypeScript ambient type shims
+├── antigravity/
+│   └── oauth.ts                   # OAuth PKCE token exchange & project provisioning
+├── hooks/
+│   └── auto-update-checker/       # NPM update checker (session.created hook)
+│       ├── index.ts
+│       ├── checker.ts
+│       ├── cache.ts
+│       ├── constants.ts           # PACKAGE_NAME, NPM_REGISTRY_URL, cache paths
+│       ├── types.ts
+│       └── index.test.ts
 └── plugin/
-    ├── auth.ts              # Token validation & refresh
-    ├── request.ts           # Request transformation (core logic)
-    ├── request-helpers.ts   # Schema cleaning, thinking filters
-    ├── thinking-recovery.ts # Turn boundary detection
-    ├── recovery.ts          # Session recovery (tool_result_missing)
-    ├── quota.ts             # Quota checking (API usage stats)
-    ├── cache.ts             # Auth & signature caching
-    ├── accounts.ts          # Multi-account management & storage
-    ├── storage.ts           # Persistent storage schemas (Zod)
-    ├── fingerprint.ts       # Device fingerprint generation & headers
-    ├── project.ts           # Managed project context resolution
-    └── debug.ts             # Debug logging utilities
+    ├── auth.ts                    # Token validation & refresh
+    ├── request.ts                 # Request transformation (core logic, 1800+ lines)
+    ├── request-helpers.ts         # Schema cleaning, thinking filters (2800+ lines)
+    ├── thinking-recovery.ts       # Turn boundary detection & loop recovery
+    ├── recovery.ts                # Session recovery (tool_result_missing)
+    ├── quota.ts                   # Quota checking (Antigravity + Gemini CLI APIs)
+    ├── cache.ts                   # In-memory auth & signature caching
+    ├── accounts.ts                # Multi-account management & load balancing (1574 lines)
+    ├── storage.ts                 # Persistent storage schemas (Zod, atomic writes)
+    ├── fingerprint.ts             # Per-account device fingerprint generation
+    ├── project.ts                 # Managed project context resolution
+    ├── debug.ts                   # File-based debug logging
+    ├── token.ts                   # OAuth token refresh with invalid_grant detection
+    ├── rotation.ts                # HealthScoreTracker, TokenBucketTracker, hybrid selection
+    ├── proxy.ts                   # Undici ProxyAgent configuration (env vars)
+    ├── server.ts                  # OAuth callback HTTP server (port 51121)
+    ├── search.ts                  # Google Search grounding (separate API call)
+    ├── errors.ts                  # Custom error classes with metadata
+    ├── types.ts                   # Shared TypeScript types
+    ├── image-saver.ts             # Save inline base64 images to disk
+    ├── cli.ts                     # Interactive CLI prompts & login menu
+    ├── version.ts                 # Antigravity version fetcher (currently disabled)
+    ├── logger.ts                  # Structured logger factory (createLogger)
+    ├── refresh-queue.ts           # Proactive token refresh queue
+    ├── cache/
+    │   ├── index.ts
+    │   └── signature-cache.ts     # Disk-based thinking signature persistence
+    ├── config/
+    │   ├── index.ts
+    │   ├── schema.ts              # Zod config schema (40+ options)
+    │   ├── loader.ts              # Config file loading & env var overrides
+    │   ├── models.ts              # OPENCODE_MODEL_DEFINITIONS (all models)
+    │   └── updater.ts             # Writes model defs to opencode.json/jsonc
+    ├── core/
+    │   └── streaming/
+    │       ├── index.ts
+    │       ├── transformer.ts     # Real-time SSE processing & signature caching
+    │       └── types.ts           # ThoughtBuffer, SignatureStore types
+    ├── recovery/
+    │   ├── index.ts
+    │   ├── storage.ts             # OpenCode session filesystem reader
+    │   ├── types.ts               # Recovery payload types
+    │   └── constants.ts           # Recovery error type constants
+    ├── stores/
+    │   └── signature-store.ts     # In-memory thought buffer store
+    ├── transform/
+    │   ├── index.ts
+    │   ├── claude.ts              # Claude VALIDATED mode, tool normalization
+    │   ├── gemini.ts              # Gemini schema conversion, image generation config
+    │   ├── model-resolver.ts      # Model name resolution (antigravity- prefix, aliases)
+    │   ├── cross-model-sanitizer.ts # Strip signatures on model switch
+    │   └── types.ts               # Transform types
+    └── ui/
+        ├── ansi.ts                # ANSI color/style helpers
+        ├── auth-menu.ts           # Interactive auth menu (account list, quota badges)
+        ├── confirm.ts             # Yes/no confirmation prompt
+        └── select.ts              # Full-featured terminal select menu
 ```
 
 ## Key Design Patterns

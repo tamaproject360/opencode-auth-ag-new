@@ -116,7 +116,7 @@ function getCapacityBackoffDelay(consecutiveFailures: number): number {
   );
   return CAPACITY_BACKOFF_TIERS_MS[Math.max(0, index)] ?? 5000;
 }
-const warmupAttemptedSessionIds = new Set<string>();
+const warmupAttemptCounts = new Map<string, number>();
 const warmupSucceededSessionIds = new Set<string>();
 
 // Track if this plugin instance is running in a child session (subagent, background task)
@@ -228,10 +228,10 @@ function trackWarmupAttempt(sessionId: string): boolean {
   if (warmupSucceededSessionIds.has(sessionId)) {
     return false;
   }
-  if (warmupAttemptedSessionIds.size >= MAX_WARMUP_SESSIONS) {
-    const first = warmupAttemptedSessionIds.values().next().value;
+  if (warmupAttemptCounts.size >= MAX_WARMUP_SESSIONS) {
+    const first = warmupAttemptCounts.keys().next().value;
     if (first) {
-      warmupAttemptedSessionIds.delete(first);
+      warmupAttemptCounts.delete(first);
       warmupSucceededSessionIds.delete(first);
     }
   }
@@ -239,12 +239,12 @@ function trackWarmupAttempt(sessionId: string): boolean {
   if (attempts >= MAX_WARMUP_RETRIES) {
     return false;
   }
-  warmupAttemptedSessionIds.add(sessionId);
+  warmupAttemptCounts.set(sessionId, attempts + 1);
   return true;
 }
 
 function getWarmupAttemptCount(sessionId: string): number {
-  return warmupAttemptedSessionIds.has(sessionId) ? 1 : 0;
+  return warmupAttemptCounts.get(sessionId) ?? 0;
 }
 
 function markWarmupSuccess(sessionId: string): void {
@@ -256,7 +256,7 @@ function markWarmupSuccess(sessionId: string): void {
 }
 
 function clearWarmupAttempt(sessionId: string): void {
-  warmupAttemptedSessionIds.delete(sessionId);
+  warmupAttemptCounts.delete(sessionId);
 }
 
 function isWSL(): boolean {
@@ -3942,12 +3942,14 @@ export const createAntigravityPlugin =
                         );
 
                         let okCount = 0;
-                        let blockedCount = 0;
+                        let verificationCount = 0;
+                        let forbiddenCount = 0;
                         let errorCount = 0;
                         let storageUpdated = false;
 
                         const blockedResults: Array<{
                           label: string;
+                          kind: "verification" | "forbidden";
                           message: string;
                           verifyUrl?: string;
                         }> = [];
@@ -4007,12 +4009,13 @@ export const createAntigravityPlugin =
                               verification.verifyUrl,
                             );
 
-                            blockedCount += 1;
+                            verificationCount += 1;
                             console.log("needs verification");
                             const verifyUrl =
                               verification.verifyUrl ?? account.verificationUrl;
                             blockedResults.push({
                               label,
+                              kind: "verification",
                               message: verification.message,
                               verifyUrl,
                             });
@@ -4032,10 +4035,11 @@ export const createAntigravityPlugin =
                               verification.message,
                             );
 
-                            blockedCount += 1;
+                            forbiddenCount += 1;
                             console.log("403 forbidden");
                             blockedResults.push({
                               label,
+                              kind: "forbidden",
                               message: verification.message,
                             });
                             continue;
@@ -4050,7 +4054,7 @@ export const createAntigravityPlugin =
                         }
 
                         console.log(
-                          `\nVerification summary: ${okCount} ready, ${blockedCount} blocked (verification/403), ${errorCount} errors.`,
+                          `\nVerification summary: ${okCount} ready, ${verificationCount} need verification, ${forbiddenCount} forbidden (403), ${errorCount} errors.`,
                         );
 
                         if (blockedResults.length > 0) {
@@ -4058,9 +4062,9 @@ export const createAntigravityPlugin =
                           for (const result of blockedResults) {
                             console.log(`\n- ${result.label}`);
                             console.log(`  ${result.message}`);
-                            if (result.verifyUrl) {
+                            if (result.kind === "verification" && result.verifyUrl) {
                               console.log(`  URL: ${result.verifyUrl}`);
-                            } else {
+                            } else if (result.kind === "verification") {
                               console.log(
                                 "  URL: not provided by API response",
                               );
@@ -4483,7 +4487,7 @@ export const createAntigravityPlugin =
                     }
 
                     console.warn(
-                      `[opencode-ag-auth] Skipping failed account ${accounts.length + 1}: ${result.error}`,
+                      `[opencode-auth-ag-new] Skipping failed account ${accounts.length + 1}: ${result.error}`,
                     );
                     break;
                   }

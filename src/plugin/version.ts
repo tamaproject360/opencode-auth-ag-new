@@ -10,6 +10,28 @@
  * supported version, avoiding "version no longer supported" errors.
  *
  * @see https://github.com/lbjlaq/Antigravity-Manager (src-tauri/src/constants.rs)
+ *
+ * ## Why initAntigravityVersion() is intentionally disabled
+ *
+ * The live-fetch logic (tryFetchVersion against VERSION_URL / CHANGELOG_URL)
+ * is kept here for future restoration, but the exported function currently
+ * skips the fetch and forces the hardcoded fallback from constants.ts.
+ *
+ * Reasons for disabling (as of v1.6.0):
+ *   - VERSION_URL (`antigravity-auto-updater-*`) is a private Cloud Run service
+ *     with no guaranteed public SLA — timeouts at startup would block the plugin.
+ *   - The scrape strategy against `antigravity.google/changelog` is fragile; any
+ *     HTML restructuring breaks the regex silently.
+ *   - In practice the version in `constants.ts` (ANTIGRAVITY_VERSION) is kept
+ *     current with each plugin release, so a live fetch provides minimal benefit.
+ *
+ * To re-enable: replace the body of initAntigravityVersion() below with:
+ *   const version =
+ *     (await tryFetchVersion(VERSION_URL)) ??
+ *     (await tryFetchVersion(CHANGELOG_URL, CHANGELOG_SCAN_CHARS)) ??
+ *     fallback;
+ *   setAntigravityVersion(version);
+ *   log.info("version-resolved", { version, source: version === fallback ? "fallback" : "remote" });
  */
 
 import { getAntigravityVersion, setAntigravityVersion } from "../constants";

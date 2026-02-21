@@ -17,6 +17,7 @@ export interface UpdateConfigResult {
   success: boolean;
   configPath: string;
   error?: string;
+  pluginReminder?: string;
 }
 
 export interface OpencodeConfig {
@@ -37,11 +38,32 @@ export interface UpdateConfigOptions {
   configPath?: string;
 }
 
+function hasLocalRepoPluginPath(entries: string[]): boolean {
+  return entries.some((entry) => {
+    const normalized = entry.toLowerCase();
+    const isPathLike =
+      entry.includes("/") ||
+      entry.includes("\\") ||
+      entry.startsWith(".") ||
+      /^[A-Za-z]:/.test(entry);
+    return isPathLike && normalized.includes("opencode-auth-ag-new");
+  });
+}
+
+function hasLegacyNpmPluginEntry(entries: string[]): boolean {
+  return entries.some((entry) => {
+    const normalized = entry.toLowerCase();
+    return (
+      normalized.includes("opencode-ag-auth@") ||
+      normalized.includes("opencode-auth-ag-new@")
+    );
+  });
+}
+
 // =============================================================================
 // Constants
 // =============================================================================
 
-const PLUGIN_NAME = "opencode-ag-auth@latest";
 const SCHEMA_URL = "https://opencode.ai/config.json";
 const OPENCODE_JSON_FILENAME = "opencode.json";
 const OPENCODE_JSONC_FILENAME = "opencode.jsonc";
@@ -132,15 +154,9 @@ export async function updateOpencodeConfig(
       config.$schema = SCHEMA_URL;
     }
 
-    // Ensure plugin array exists and contains our plugin
+    // Ensure plugin array exists
     if (!Array.isArray(config.plugin)) {
       config.plugin = [];
-    }
-
-    // Check if plugin is already in the list (any version)
-    const hasPlugin = config.plugin.some((p) => p.includes("opencode-ag-auth"));
-    if (!hasPlugin) {
-      config.plugin.push(PLUGIN_NAME);
     }
 
     // Ensure provider.google structure exists
@@ -163,9 +179,22 @@ export async function updateOpencodeConfig(
     // Write config with proper formatting (2-space indent)
     writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
+    const pluginEntries = config.plugin.filter(
+      (entry): entry is string => typeof entry === "string",
+    );
+    let pluginReminder: string | undefined;
+    if (!hasLocalRepoPluginPath(pluginEntries)) {
+      pluginReminder =
+        "Reminder: set plugin path to your local repo in opencode.json, e.g. \"plugin\": [\"/path/ke/opencode-auth-ag-new\"]";
+    } else if (hasLegacyNpmPluginEntry(pluginEntries)) {
+      pluginReminder =
+        "Reminder: remove legacy npm plugin entries and keep local repo path for this fork.";
+    }
+
     return {
       success: true,
       configPath,
+      pluginReminder,
     };
   } catch (error) {
     return {

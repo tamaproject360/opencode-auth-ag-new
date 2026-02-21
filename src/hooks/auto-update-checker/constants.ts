@@ -1,6 +1,9 @@
 import * as path from "node:path";
 import * as os from "node:os";
 
+// Nama npm package ini jika/ketika dipublish ke registry.
+// Repo lokal ini (opencode-auth-ag-new) belum dipublish ke npm;
+// auto-update-checker akan mendeteksi local dev mode dan skip npm check.
 export const PACKAGE_NAME = "opencode-ag-auth";
 export const NPM_REGISTRY_URL = `https://registry.npmjs.org/-/package/${PACKAGE_NAME}/dist-tags`;
 export const NPM_FETCH_TIMEOUT = 5000;
