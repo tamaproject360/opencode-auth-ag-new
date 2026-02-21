@@ -31,8 +31,7 @@ export type AuthMenuAction =
   | { type: "disable-all" }
   | { type: "delete-all" }
   | { type: "check" }
-  | { type: "verify" }
-  | { type: "verify-all" }
+  | { type: "reset-all-status" }
   | { type: "configure-models" }
   | { type: "cancel" };
 
@@ -42,7 +41,6 @@ export type AccountAction =
   | "delete"
   | "refresh"
   | "toggle"
-  | "verify"
   | "cancel";
 
 function formatRelativeTime(timestamp: number | undefined): string {
@@ -128,10 +126,9 @@ export async function showAuthMenu(
     { label: "Actions", value: { type: "cancel" }, kind: "heading" },
     { label: "Add account", value: { type: "add" }, color: "cyan" },
     { label: "Check quotas", value: { type: "check" }, color: "cyan" },
-    { label: "Verify one account", value: { type: "verify" }, color: "cyan" },
     {
-      label: "Verify all accounts",
-      value: { type: "verify-all" },
+      label: "Reset all account status",
+      value: { type: "reset-all-status" },
       color: "cyan",
     },
     {
@@ -248,11 +245,6 @@ export async function showAccountDetails(
           value: "use-now" as const,
           color: "green",
           disabled: account.isCurrentAccount,
-        },
-        {
-          label: "Verify account access",
-          value: "verify" as const,
-          color: "cyan",
         },
         {
           label:

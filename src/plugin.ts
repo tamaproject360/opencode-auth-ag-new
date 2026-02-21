@@ -3923,296 +3923,51 @@ export const createAntigravityPlugin =
                       continue;
                     }
 
-                    if (
-                      menuResult.mode === "verify" ||
-                      menuResult.mode === "verify-all"
-                    ) {
-                      const verifyAll =
-                        menuResult.mode === "verify-all" ||
-                        menuResult.verifyAll === true;
-
-                      if (verifyAll) {
-                        if (existingStorage.accounts.length === 0) {
-                          console.log("\nNo accounts available to verify.\n");
-                          continue;
-                        }
-
-                        console.log(
-                          `\nChecking verification status for ${existingStorage.accounts.length} account(s)...\n`,
-                        );
-
-                        let okCount = 0;
-                        let verificationCount = 0;
-                        let forbiddenCount = 0;
-                        let errorCount = 0;
-                        let storageUpdated = false;
-
-                        const blockedResults: Array<{
-                          label: string;
-                          kind: "verification" | "forbidden";
-                          message: string;
-                          verifyUrl?: string;
-                        }> = [];
-
-                        for (
-                          let i = 0;
-                          i < existingStorage.accounts.length;
-                          i++
-                        ) {
-                          const account = existingStorage.accounts[i];
-                          if (!account) continue;
-
-                          const label = account.email || `Account ${i + 1}`;
-                          process.stdout.write(
-                            `- [${i + 1}/${existingStorage.accounts.length}] ${label} ... `,
-                          );
-
-                          const verification = await verifyAccountAccess(
-                            account,
-                            client,
-                            providerId,
-                          );
-                          if (verification.status === "ok") {
-                            const { changed: verificationChanged, wasVerificationRequired } =
-                              clearStoredAccountVerificationRequired(
-                                account,
-                                true,
-                              );
-                            const { changed: forbiddenChanged } =
-                              clearStoredAccountForbidden(account, true);
-                            if (verificationChanged || forbiddenChanged) {
-                              storageUpdated = true;
-                            }
-                            activeAccountManager?.clearAccountVerificationRequired(
-                              i,
-                              wasVerificationRequired,
-                            );
-                            activeAccountManager?.clearAccountForbidden(i, true);
-                            okCount += 1;
-                            console.log("ok");
-                            continue;
-                          }
-
-                          if (verification.status === "blocked") {
-                            const changed =
-                              markStoredAccountVerificationRequired(
-                                account,
-                                verification.message,
-                                verification.verifyUrl,
-                              );
-                            if (changed) {
-                              storageUpdated = true;
-                            }
-                            activeAccountManager?.markAccountVerificationRequired(
-                              i,
-                              verification.message,
-                              verification.verifyUrl,
-                            );
-
-                            verificationCount += 1;
-                            console.log("needs verification");
-                            const verifyUrl =
-                              verification.verifyUrl ?? account.verificationUrl;
-                            blockedResults.push({
-                              label,
-                              kind: "verification",
-                              message: verification.message,
-                              verifyUrl,
-                            });
-                            continue;
-                          }
-
-                          if (verification.status === "forbidden") {
-                            const changed = markStoredAccountForbidden(
-                              account,
-                              verification.message,
-                            );
-                            if (changed) {
-                              storageUpdated = true;
-                            }
-                            activeAccountManager?.markAccountForbidden(
-                              i,
-                              verification.message,
-                            );
-
-                            forbiddenCount += 1;
-                            console.log("403 forbidden");
-                            blockedResults.push({
-                              label,
-                              kind: "forbidden",
-                              message: verification.message,
-                            });
-                            continue;
-                          }
-
-                          errorCount += 1;
-                          console.log(`error (${verification.message})`);
-                        }
-
-                        if (storageUpdated) {
-                          await saveAccounts(existingStorage);
-                        }
-
-                        console.log(
-                          `\nVerification summary: ${okCount} ready, ${verificationCount} need verification, ${forbiddenCount} forbidden (403), ${errorCount} errors.`,
-                        );
-
-                        if (blockedResults.length > 0) {
-                          console.log("\nBlocked accounts:");
-                          for (const result of blockedResults) {
-                            console.log(`\n- ${result.label}`);
-                            console.log(`  ${result.message}`);
-                            if (result.kind === "verification" && result.verifyUrl) {
-                              console.log(`  URL: ${result.verifyUrl}`);
-                            } else if (result.kind === "verification") {
-                              console.log(
-                                "  URL: not provided by API response",
-                              );
-                            }
-                          }
-                          console.log("");
-                        } else {
-                          console.log("");
-                        }
-
+                    if (menuResult.mode === "reset-all-status") {
+                      if (existingStorage.accounts.length === 0) {
+                        console.log("\nNo accounts to reset.\n");
                         continue;
                       }
 
-                      let verifyAccountIndex = menuResult.verifyAccountIndex;
-                      if (verifyAccountIndex === undefined) {
-                        verifyAccountIndex =
-                          await promptAccountIndexForVerification(
-                            existingAccounts,
+                      let resetCount = 0;
+                      for (
+                        let i = 0;
+                        i < existingStorage.accounts.length;
+                        i++
+                      ) {
+                        const account = existingStorage.accounts[i];
+                        if (!account) continue;
+
+                        // Clear forbidden state
+                        if (account.forbidden) {
+                          account.forbidden = false;
+                          account.forbiddenAt = undefined;
+                          account.forbiddenReason = undefined;
+                          activeAccountManager?.clearAccountForbidden(i, true);
+                        }
+                        // Clear verification-required state
+                        if (account.verificationRequired) {
+                          account.verificationRequired = false;
+                          account.verificationRequiredAt = undefined;
+                          account.verificationRequiredReason = undefined;
+                          account.verificationUrl = undefined;
+                          activeAccountManager?.clearAccountVerificationRequired(
+                            i,
+                            true,
                           );
+                        }
+                        // Re-enable if disabled
+                        if (account.enabled === false) {
+                          account.enabled = true;
+                          activeAccountManager?.setAccountEnabled(i, true);
+                        }
+                        resetCount += 1;
                       }
 
-                      if (verifyAccountIndex === undefined) {
-                        console.log("\nVerification cancelled.\n");
-                        continue;
-                      }
-
-                      const account =
-                        existingStorage.accounts[verifyAccountIndex];
-                      if (!account) {
-                        console.log(
-                          `\nAccount ${verifyAccountIndex + 1} not found.\n`,
-                        );
-                        continue;
-                      }
-
-                      const label =
-                        account.email || `Account ${verifyAccountIndex + 1}`;
+                      await saveAccounts(existingStorage);
                       console.log(
-                        `\nChecking verification status for ${label}...\n`,
+                        `\nReset status for ${resetCount} account(s). All accounts are now active and enabled.\n`,
                       );
-
-                      const verification = await verifyAccountAccess(
-                        account,
-                        client,
-                        providerId,
-                      );
-
-                      if (verification.status === "ok") {
-                        const { changed: verificationChanged, wasVerificationRequired } =
-                          clearStoredAccountVerificationRequired(account, true);
-                        const { changed: forbiddenChanged, wasForbidden } =
-                          clearStoredAccountForbidden(account, true);
-                        if (verificationChanged || forbiddenChanged) {
-                          await saveAccounts(existingStorage);
-                        }
-                        activeAccountManager?.clearAccountVerificationRequired(
-                          verifyAccountIndex,
-                          wasVerificationRequired,
-                        );
-                        activeAccountManager?.clearAccountForbidden(
-                          verifyAccountIndex,
-                          wasForbidden,
-                        );
-
-                        if (wasVerificationRequired || wasForbidden) {
-                          console.log(
-                            `✓ ${label} is ready for requests and has been re-enabled.\n`,
-                          );
-                        } else {
-                          console.log(`✓ ${label} is ready for requests.\n`);
-                        }
-                        continue;
-                      }
-
-                      if (verification.status === "blocked") {
-                        const changed = markStoredAccountVerificationRequired(
-                          account,
-                          verification.message,
-                          verification.verifyUrl,
-                        );
-                        if (changed) {
-                          await saveAccounts(existingStorage);
-                        }
-                        activeAccountManager?.markAccountVerificationRequired(
-                          verifyAccountIndex,
-                          verification.message,
-                          verification.verifyUrl,
-                        );
-
-                        const verifyUrl =
-                          verification.verifyUrl ?? account.verificationUrl;
-                        console.log(
-                          `⚠ ${label} needs Google verification before it can be used.`,
-                        );
-                        if (verification.message) {
-                          console.log(verification.message);
-                        }
-                        console.log(
-                          `${label} has been disabled until verification is completed.`,
-                        );
-                        if (verifyUrl) {
-                          console.log(`\nVerification URL:\n${verifyUrl}\n`);
-                          if (await promptOpenVerificationUrl()) {
-                            const opened = await openBrowser(verifyUrl);
-                            if (opened) {
-                              console.log(
-                                "Opened verification URL in your browser.\n",
-                              );
-                            } else {
-                              console.log(
-                                "Could not open browser automatically. Please open the URL manually.\n",
-                              );
-                            }
-                          }
-                        } else {
-                          console.log(
-                            "No verification URL was returned. Try re-authenticating this account.\n",
-                          );
-                        }
-                        continue;
-                      }
-
-                      if (verification.status === "forbidden") {
-                        const changed = markStoredAccountForbidden(
-                          account,
-                          verification.message,
-                        );
-                        if (changed) {
-                          await saveAccounts(existingStorage);
-                        }
-                        activeAccountManager?.markAccountForbidden(
-                          verifyAccountIndex,
-                          verification.message,
-                        );
-
-                        console.log(
-                          `⛔ ${label} returned 403 forbidden and has been disabled.`,
-                        );
-                        if (verification.message) {
-                          console.log(verification.message);
-                        }
-                        console.log(
-                          "This usually means the account is restricted/banned for this API path.\n",
-                        );
-                        continue;
-                      }
-
-                      console.log(`✗ ${label}: ${verification.message}\n`);
                       continue;
                     }
 

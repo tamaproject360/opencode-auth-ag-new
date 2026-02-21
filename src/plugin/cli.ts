@@ -52,8 +52,7 @@ export type LoginMode =
   | "fresh"
   | "manage"
   | "check"
-  | "verify"
-  | "verify-all"
+  | "reset-all-status"
   | "cancel";
 
 export interface ExistingAccountInfo {
@@ -74,8 +73,6 @@ export interface LoginMenuResult {
   selectAccountIndex?: number;
   enableAll?: boolean;
   disableAll?: boolean;
-  verifyAccountIndex?: number;
-  verifyAll?: boolean;
   deleteAll?: boolean;
 }
 
@@ -93,7 +90,7 @@ async function promptLoginModeFallback(
 
     while (true) {
       const answer = await rl.question(
-        "(a)dd new, (ea) enable all, (da) disable all, (f)resh start, (c)heck quotas, (v)erify account, (va) verify all? [a/ea/da/f/c/v/va]: ",
+        "(a)dd new, (ea) enable all, (da) disable all, (f)resh start, (c)heck quotas, (r)eset all status? [a/ea/da/f/c/r]: ",
       );
       const normalized = answer.trim().toLowerCase();
 
@@ -112,18 +109,15 @@ async function promptLoginModeFallback(
       if (normalized === "c" || normalized === "check") {
         return { mode: "check" };
       }
-      if (normalized === "v" || normalized === "verify") {
-        return { mode: "verify" };
-      }
       if (
-        normalized === "va" ||
-        normalized === "verify-all" ||
-        normalized === "all"
+        normalized === "r" ||
+        normalized === "reset" ||
+        normalized === "reset-all"
       ) {
-        return { mode: "verify-all", verifyAll: true };
+        return { mode: "reset-all-status" };
       }
 
-      console.log("Please enter 'a', 'ea', 'da', 'f', 'c', 'v', or 'va'.");
+      console.log("Please enter 'a', 'ea', 'da', 'f', 'c', or 'r'.");
     }
   } finally {
     rl.close();
@@ -159,11 +153,8 @@ export async function promptLoginMode(
       case "check":
         return { mode: "check" };
 
-      case "verify":
-        return { mode: "verify" };
-
-      case "verify-all":
-        return { mode: "verify-all", verifyAll: true };
+      case "reset-all-status":
+        return { mode: "reset-all-status" };
 
       case "select-account": {
         const accountAction = await showAccountDetails(action.account);
@@ -178,9 +169,6 @@ export async function promptLoginMode(
         }
         if (accountAction === "use-now") {
           return { mode: "manage", selectAccountIndex: action.account.index };
-        }
-        if (accountAction === "verify") {
-          return { mode: "verify", verifyAccountIndex: action.account.index };
         }
         continue;
       }
