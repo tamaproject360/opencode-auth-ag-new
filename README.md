@@ -1,8 +1,8 @@
 # OpenCode AG Auth (Antigravity Guard)
 
-[![npm version](https://img.shields.io/npm/v/opencode-ag-auth.svg)](https://www.npmjs.com/package/opencode-ag-auth)
-[![npm beta](https://img.shields.io/npm/v/opencode-ag-auth/beta.svg?label=beta)](https://www.npmjs.com/package/opencode-ag-auth)
-[![npm downloads](https://img.shields.io/npm/dw/opencode-ag-auth.svg)](https://www.npmjs.com/package/opencode-ag-auth)
+[![GitHub release](https://img.shields.io/github/v/release/tamaproject360/opencode-auth-ag-new.svg)](https://github.com/tamaproject360/opencode-auth-ag-new/releases/latest)
+[![GitHub issues](https://img.shields.io/github/issues/tamaproject360/opencode-auth-ag-new.svg)](https://github.com/tamaproject360/opencode-auth-ag-new/issues)
+[![GitHub stars](https://img.shields.io/github/stars/tamaproject360/opencode-auth-ag-new.svg)](https://github.com/tamaproject360/opencode-auth-ag-new)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-tamaproject360-181717?style=flat&logo=github)](https://github.com/tamaproject360)
 
@@ -72,32 +72,38 @@ Ini adalah fork khusus dari `opencode-antigravity-auth` yang fokus ke **safety**
 Tempel prompt berikut ke agent LLM apa pun (Claude Code, OpenCode, Cursor, dll):
 
 ```
-Install the opencode-ag-auth plugin and add the Antigravity model definitions to ~/.config/opencode/opencode.json by following: https://raw.githubusercontent.com/tamaproject360/opencode-ag-auth/main/README.md
+Install the opencode-auth-ag-new plugin and add the Antigravity model definitions to ~/.config/opencode/opencode.json by following: https://raw.githubusercontent.com/tamaproject360/opencode-auth-ag-new/main/README.md
 ```
 
 **Opsi B: Setup manual (NPM)**
 
-1. **Tambahkan plugin** ke `~/.config/opencode/opencode.json` (OpenCode akan auto-install dari NPM):
+1. **Kloning repo ini** ke folder mana pun. Contoh:
+
+   ```bash
+   git clone https://github.com/tamaproject360/opencode-auth-ag-new.git
+   ```
+
+2. **Tambahkan folder plugin** ke `~/.config/opencode/opencode.json`:
 
    ```json
    {
-     "plugin": ["opencode-ag-auth@latest"]
+     "plugin": ["/path/ke/opencode-auth-ag-new"]
    }
    ```
 
-   > Ingin fitur paling baru? Gunakan `opencode-ag-auth@beta`.
+   > Ganti `/path/ke/opencode-auth-ag-new` dengan path absolut di mesin Anda (contoh `C:/tools/opencode-auth-ag-new` atau `~/code/opencode-auth-ag-new`).
 
-2. **Login** dengan akun Google Anda:
+3. **Login** dengan akun Google Anda:
 
    ```bash
    opencode auth login
    ```
 
-3. **Tambahkan model** — pilih salah satu:
+4. **Tambahkan model** — pilih salah satu:
    - Jalankan `opencode auth login` → pilih **"Configure models in opencode.json"** (otomatis menambahkan semua model)
    - Atau copy manual dari [konfigurasi lengkap](#models) di bawah
 
-4. **Gunakan plugin:**
+5. **Gunakan plugin:**
 
    ```bash
    opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
@@ -110,15 +116,17 @@ Install the opencode-ag-auth plugin and add the Antigravity model definitions to
 
 ### Langkah Implementasi
 
-1. Edit file konfigurasi OpenCode di `~/.config/opencode/opencode.json`
+1. Pastikan repo ini sudah dikloning dan path-nya bisa diakses agent.
+
+2. Edit file konfigurasi OpenCode di `~/.config/opencode/opencode.json`
 
    > **Catatan**: Path ini berlaku di semua platform. Di Windows, `~` akan resolve ke home user (misalnya `C:\Users\YourName`).
 
-2. Tambahkan plugin ke array `plugin`
+3. Tambahkan path folder repo ini ke array `plugin`
 
-3. Tambahkan definisi model dari bagian [Full models configuration](#models)
+4. Tambahkan definisi model dari bagian [Full models configuration](#models)
 
-4. Set `provider` ke `"google"` dan pilih model default
+5. Set `provider` ke `"google"` dan pilih model default
 
 ### Verifikasi
 
@@ -179,7 +187,7 @@ Tambahkan ini ke `~/.config/opencode/opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-ag-auth@latest"],
+  "plugin": ["/path/ke/opencode-auth-ag-new"],
   "provider": {
     "google": {
       "models": {
@@ -375,9 +383,9 @@ Invalid JSON payload received. Unknown name "parameters" at 'request.tools[0]'
 - Regresi versi plugin
 
 **Solusi:**
-1. **Update ke beta terbaru:**
-   ```json
-   { "plugin": ["opencode-ag-auth@beta"] }
+1. **Update folder repo ini ke commit terbaru:**
+   ```bash
+   cd /path/ke/opencode-auth-ag-new && git pull
    ```
 
 2. **Disable MCP server** satu per satu untuk menemukan sumber masalah
@@ -408,7 +416,7 @@ Biasanya ini berarti nama tool MCP diawali angka (misalnya key `1mcp_*`). Ubah k
 **Langkah diagnosis:**
 1. Disable semua MCP server di config
 2. Aktifkan satu per satu sampai error muncul lagi
-3. Laporkan MCP terkait di [GitHub issue](https://github.com/tamaproject360/opencode-ag-auth/issues)
+3. Laporkan MCP terkait di [GitHub issue](https://github.com/tamaproject360/opencode-auth-ag-new/issues)
 
 ---
 
@@ -537,7 +545,7 @@ Key yang benar adalah `plugin` (singular):
 
 ```json
 {
-  "plugin": ["opencode-ag-auth@beta"]
+  "plugin": ["/path/ke/opencode-auth-ag-new"]
 }
 ```
 
@@ -548,7 +556,7 @@ Key yang benar adalah `plugin` (singular):
 ### Migrasi Akun Antar Mesin
 
 Saat menyalin `antigravity-accounts.json` ke mesin baru:
-1. Pastikan plugin terpasang: `"plugin": ["opencode-ag-auth@beta"]`
+1. Pastikan `opencode.json` masih menunjuk ke folder repo ini (`"plugin": ["/path/ke/opencode-auth-ag-new"]`)
 2. Salin `~/.config/opencode/antigravity-accounts.json`
 3. Jika muncul error "API key missing", kemungkinan refresh token invalid — lakukan re-auth
 
@@ -566,7 +574,7 @@ DCP membuat synthetic assistant message tanpa thinking blocks. **Pastikan plugin
 ```json
 {
   "plugin": [
-    "opencode-ag-auth@latest",
+    "/path/ke/opencode-auth-ag-new",
     "@tarquinen/opencode-dcp@latest"
   ]
 }
@@ -601,7 +609,7 @@ Buat file `~/.config/opencode/antigravity.json` untuk pengaturan opsional:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/tamaproject360/opencode-ag-auth/main/assets/antigravity.schema.json"
+  "$schema": "https://raw.githubusercontent.com/tamaproject360/opencode-auth-ag-new/main/assets/antigravity.schema.json"
 }
 ```
 
