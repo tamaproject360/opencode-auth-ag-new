@@ -71,6 +71,9 @@ export interface LoginMenuResult {
   deleteAccountIndex?: number;
   refreshAccountIndex?: number;
   toggleAccountIndex?: number;
+  selectAccountIndex?: number;
+  enableAll?: boolean;
+  disableAll?: boolean;
   verifyAccountIndex?: number;
   verifyAll?: boolean;
   deleteAll?: boolean;
@@ -90,7 +93,7 @@ async function promptLoginModeFallback(
 
     while (true) {
       const answer = await rl.question(
-        "(a)dd new, (f)resh start, (c)heck quotas, (v)erify account, (va) verify all? [a/f/c/v/va]: ",
+        "(a)dd new, (ea) enable all, (da) disable all, (f)resh start, (c)heck quotas, (v)erify account, (va) verify all? [a/ea/da/f/c/v/va]: ",
       );
       const normalized = answer.trim().toLowerCase();
 
@@ -99,6 +102,12 @@ async function promptLoginModeFallback(
       }
       if (normalized === "f" || normalized === "fresh") {
         return { mode: "fresh" };
+      }
+      if (normalized === "ea" || normalized === "enable-all") {
+        return { mode: "manage", enableAll: true };
+      }
+      if (normalized === "da" || normalized === "disable-all") {
+        return { mode: "manage", disableAll: true };
       }
       if (normalized === "c" || normalized === "check") {
         return { mode: "check" };
@@ -114,7 +123,7 @@ async function promptLoginModeFallback(
         return { mode: "verify-all", verifyAll: true };
       }
 
-      console.log("Please enter 'a', 'f', 'c', 'v', or 'va'.");
+      console.log("Please enter 'a', 'ea', 'da', 'f', 'c', 'v', or 'va'.");
     }
   } finally {
     rl.close();
@@ -167,6 +176,9 @@ export async function promptLoginMode(
         if (accountAction === "toggle") {
           return { mode: "manage", toggleAccountIndex: action.account.index };
         }
+        if (accountAction === "use-now") {
+          return { mode: "manage", selectAccountIndex: action.account.index };
+        }
         if (accountAction === "verify") {
           return { mode: "verify", verifyAccountIndex: action.account.index };
         }
@@ -175,6 +187,12 @@ export async function promptLoginMode(
 
       case "delete-all":
         return { mode: "fresh", deleteAll: true };
+
+      case "enable-all":
+        return { mode: "manage", enableAll: true };
+
+      case "disable-all":
+        return { mode: "manage", disableAll: true };
 
       case "configure-models": {
         const result = await updateOpencodeConfig();

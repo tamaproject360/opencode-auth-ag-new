@@ -7,6 +7,7 @@ export type AccountStatus =
   | "rate-limited"
   | "expired"
   | "verification-required"
+  | "forbidden"
   | "unknown";
 
 export interface AccountInfo {
@@ -26,6 +27,8 @@ export interface AccountInfo {
 export type AuthMenuAction =
   | { type: "add" }
   | { type: "select-account"; account: AccountInfo }
+  | { type: "enable-all" }
+  | { type: "disable-all" }
   | { type: "delete-all" }
   | { type: "check" }
   | { type: "verify" }
@@ -35,6 +38,7 @@ export type AuthMenuAction =
 
 export type AccountAction =
   | "back"
+  | "use-now"
   | "delete"
   | "refresh"
   | "toggle"
@@ -110,6 +114,8 @@ function getStatusBadge(
       return `${ANSI.red}[expired]${ANSI.reset}`;
     case "verification-required":
       return `${ANSI.red}[needs verification]${ANSI.reset}`;
+    case "forbidden":
+      return `${ANSI.red}[403 forbidden]${ANSI.reset}`;
     default:
       return "";
   }
@@ -166,6 +172,16 @@ export async function showAuthMenu(
 
     { label: "Danger zone", value: { type: "cancel" }, kind: "heading" },
     {
+      label: "Enable all accounts",
+      value: { type: "enable-all" },
+      color: "green" as const,
+    },
+    {
+      label: "Disable all accounts",
+      value: { type: "disable-all" },
+      color: "yellow" as const,
+    },
+    {
       label: "Delete all accounts",
       value: { type: "delete-all" },
       color: "red" as const,
@@ -185,6 +201,18 @@ export async function showAuthMenu(
       const confirmed = await confirm(
         "Delete ALL accounts? This cannot be undone.",
       );
+      if (!confirmed) continue;
+    }
+
+    if (result.type === "disable-all") {
+      const confirmed = await confirm(
+        "Disable ALL accounts? You can re-enable them later.",
+      );
+      if (!confirmed) continue;
+    }
+
+    if (result.type === "enable-all") {
+      const confirmed = await confirm("Enable ALL accounts?");
       if (!confirmed) continue;
     }
 
@@ -213,6 +241,14 @@ export async function showAccountDetails(
     const result = await select(
       [
         { label: "Back", value: "back" as const },
+        {
+          label: account.isCurrentAccount
+            ? "Already current account"
+            : "Use this account now",
+          value: "use-now" as const,
+          color: "green",
+          disabled: account.isCurrentAccount,
+        },
         {
           label: "Verify account access",
           value: "verify" as const,

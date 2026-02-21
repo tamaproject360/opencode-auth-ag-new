@@ -199,6 +199,10 @@ export interface AccountMetadataV3 {
   verificationRequiredAt?: number;
   verificationRequiredReason?: string;
   verificationUrl?: string;
+  /** Set when Google returns 403 forbidden that is not account verification flow. */
+  forbidden?: boolean;
+  forbiddenAt?: number;
+  forbiddenReason?: string;
   /** Cached soft quota data */
   cachedQuota?: Record<string, { remainingFraction?: number; resetTime?: string; modelCount: number }>;
   cachedQuotaUpdatedAt?: number;

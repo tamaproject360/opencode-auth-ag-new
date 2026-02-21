@@ -189,6 +189,9 @@ export interface ManagedAccount {
   verificationRequiredAt?: number;
   verificationRequiredReason?: string;
   verificationUrl?: string;
+  forbidden?: boolean;
+  forbiddenAt?: number;
+  forbiddenReason?: string;
 }
 
 function nowMs(): number {
@@ -469,6 +472,9 @@ export class AccountManager {
             verificationRequiredAt: acc.verificationRequiredAt,
             verificationRequiredReason: acc.verificationRequiredReason,
             verificationUrl: acc.verificationUrl,
+            forbidden: acc.forbidden,
+            forbiddenAt: acc.forbiddenAt,
+            forbiddenReason: acc.forbiddenReason,
           };
         })
         .filter((a): a is ManagedAccount => a !== null);
@@ -1022,6 +1028,20 @@ export class AccountManager {
     return true;
   }
 
+  setCurrentAccount(accountIndex: number): boolean {
+    const account = this.accounts[accountIndex];
+    if (!account || account.enabled === false) {
+      return false;
+    }
+
+    this.currentAccountIndexByFamily.claude = account.index;
+    this.currentAccountIndexByFamily.gemini = account.index;
+    this.cursor = account.index;
+    this.requestSaveToDisk();
+
+    return true;
+  }
+
   markAccountVerificationRequired(
     accountIndex: number,
     reason?: string,
@@ -1035,6 +1055,9 @@ export class AccountManager {
     account.verificationRequired = true;
     account.verificationRequiredAt = nowMs();
     account.verificationRequiredReason = reason?.trim() || undefined;
+    account.forbidden = false;
+    account.forbiddenAt = undefined;
+    account.forbiddenReason = undefined;
 
     const normalizedVerifyUrl = verifyUrl?.trim();
     if (normalizedVerifyUrl) {
@@ -1073,6 +1096,52 @@ export class AccountManager {
     if (enableAccount && wasVerificationRequired && account.enabled === false) {
       this.setAccountEnabled(accountIndex, true);
     } else if (wasVerificationRequired || hadMetadata) {
+      this.requestSaveToDisk();
+    }
+
+    return true;
+  }
+
+  markAccountForbidden(accountIndex: number, reason?: string): boolean {
+    const account = this.accounts[accountIndex];
+    if (!account) {
+      return false;
+    }
+
+    account.forbidden = true;
+    account.forbiddenAt = nowMs();
+    account.forbiddenReason = reason?.trim() || undefined;
+    account.verificationRequired = false;
+    account.verificationRequiredAt = undefined;
+    account.verificationRequiredReason = undefined;
+    account.verificationUrl = undefined;
+
+    if (account.enabled !== false) {
+      this.setAccountEnabled(accountIndex, false);
+    } else {
+      this.requestSaveToDisk();
+    }
+
+    return true;
+  }
+
+  clearAccountForbidden(accountIndex: number, enableAccount = false): boolean {
+    const account = this.accounts[accountIndex];
+    if (!account) {
+      return false;
+    }
+
+    const wasForbidden = account.forbidden === true;
+    const hadMetadata =
+      account.forbiddenAt !== undefined || account.forbiddenReason !== undefined;
+
+    account.forbidden = false;
+    account.forbiddenAt = undefined;
+    account.forbiddenReason = undefined;
+
+    if (enableAccount && wasForbidden && account.enabled === false) {
+      this.setAccountEnabled(accountIndex, true);
+    } else if (wasForbidden || hadMetadata) {
       this.requestSaveToDisk();
     }
 
@@ -1232,6 +1301,9 @@ export class AccountManager {
         verificationRequiredAt: a.verificationRequiredAt,
         verificationRequiredReason: a.verificationRequiredReason,
         verificationUrl: a.verificationUrl,
+        forbidden: a.forbidden,
+        forbiddenAt: a.forbiddenAt,
+        forbiddenReason: a.forbiddenReason,
       })),
       activeIndex: claudeIndex,
       activeIndexByFamily: {

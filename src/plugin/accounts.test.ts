@@ -57,6 +57,84 @@ describe("AccountManager", () => {
     expect(account?.index).toBe(0);
   });
 
+  it("allows manually selecting the current account", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        { refreshToken: "r2", projectId: "p2", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    };
+
+    const manager = new AccountManager(undefined, stored);
+
+    expect(manager.setCurrentAccount(1)).toBe(true);
+    expect(manager.getCurrentAccountForFamily("claude")?.index).toBe(1);
+    expect(manager.getCurrentAccountForFamily("gemini")?.index).toBe(1);
+  });
+
+  it("rejects selecting disabled accounts as current", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+        {
+          refreshToken: "r2",
+          projectId: "p2",
+          addedAt: 1,
+          lastUsed: 0,
+          enabled: false,
+        },
+      ],
+      activeIndex: 0,
+    };
+
+    const manager = new AccountManager(undefined, stored);
+
+    expect(manager.setCurrentAccount(1)).toBe(false);
+    expect(manager.getCurrentAccountForFamily("claude")?.index).toBe(0);
+  });
+
+  it("marks account as forbidden on 403 and disables it", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    };
+
+    const manager = new AccountManager(undefined, stored);
+
+    expect(manager.markAccountForbidden(0, "403 forbidden")).toBe(true);
+
+    const account = manager.getAccounts()[0];
+    expect(account?.enabled).toBe(false);
+    expect(account?.forbidden).toBe(true);
+    expect(account?.forbiddenReason).toBe("403 forbidden");
+  });
+
+  it("clears forbidden state and can re-enable account", () => {
+    const stored: AccountStorageV4 = {
+      version: 4,
+      accounts: [
+        { refreshToken: "r1", projectId: "p1", addedAt: 1, lastUsed: 0 },
+      ],
+      activeIndex: 0,
+    };
+
+    const manager = new AccountManager(undefined, stored);
+    manager.markAccountForbidden(0, "403 forbidden");
+
+    expect(manager.clearAccountForbidden(0, true)).toBe(true);
+
+    const account = manager.getAccounts()[0];
+    expect(account?.forbidden).toBe(false);
+    expect(account?.forbiddenReason).toBeUndefined();
+    expect(account?.enabled).toBe(true);
+  });
+
   it("switches to next account when current is rate-limited for family", () => {
     const stored: AccountStorageV4 = {
       version: 4,

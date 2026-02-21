@@ -334,7 +334,7 @@ async function openBrowser(url: string): Promise<boolean> {
 }
 
 type VerificationProbeResult = {
-  status: "ok" | "blocked" | "error";
+  status: "ok" | "blocked" | "forbidden" | "error";
   message: string;
   verifyUrl?: string;
 };
@@ -489,11 +489,20 @@ function extractVerificationErrorDetails(bodyText: string): {
     walk(payload);
   }
 
+  const selectedVerifyUrl = selectBestVerificationUrl([...verificationUrls]);
+  const hasGoogleVerificationUrl = selectedVerifyUrl !== undefined;
+
   if (!validationRequired) {
-    validationRequired =
-      lowerBody.includes("verification required") ||
+    const hasStrongVerificationPhrase =
       lowerBody.includes("verify your account") ||
-      lowerBody.includes("account verification");
+      lowerBody.includes("complete account verification") ||
+      lowerBody.includes("account needs verification") ||
+      lowerBody.includes("finish verifying your account") ||
+      lowerBody.includes("google account verification");
+
+    validationRequired =
+      hasStrongVerificationPhrase ||
+      (hasGoogleVerificationUrl && lowerBody.includes("verify"));
   }
 
   if (!message) {
@@ -504,7 +513,7 @@ function extractVerificationErrorDetails(bodyText: string): {
         (line) =>
           line &&
           !line.startsWith("data:") &&
-          /(verify|validation|required)/i.test(line),
+          /(verify|verification|validation_required)/i.test(line),
       );
     if (fallback) {
       message = fallback;
@@ -514,7 +523,7 @@ function extractVerificationErrorDetails(bodyText: string): {
   return {
     validationRequired,
     message,
-    verifyUrl: selectBestVerificationUrl([...verificationUrls]),
+    verifyUrl: selectedVerifyUrl,
   };
 }
 
@@ -639,6 +648,15 @@ async function verifyAccountAccess(
     };
   }
 
+  if (response.status === 403) {
+    return {
+      status: "forbidden",
+      message:
+        extracted.message ??
+        "Access forbidden (403). This account may be restricted or banned.",
+    };
+  }
+
   const fallbackMessage =
     extracted.message ??
     `Request failed (${response.status} ${response.statusText}).`;
@@ -706,6 +724,9 @@ type VerificationStoredAccount = {
   verificationRequiredAt?: number;
   verificationRequiredReason?: string;
   verificationUrl?: string;
+  forbidden?: boolean;
+  forbiddenAt?: number;
+  forbiddenReason?: string;
 };
 
 function markStoredAccountVerificationRequired(
@@ -746,6 +767,19 @@ function markStoredAccountVerificationRequired(
     changed = true;
   }
 
+  if (account.forbidden !== false) {
+    account.forbidden = false;
+    changed = true;
+  }
+  if (account.forbiddenAt !== undefined) {
+    account.forbiddenAt = undefined;
+    changed = true;
+  }
+  if (account.forbiddenReason !== undefined) {
+    account.forbiddenReason = undefined;
+    changed = true;
+  }
+
   return changed;
 }
 
@@ -783,6 +817,80 @@ function clearStoredAccountVerificationRequired(
   }
 
   return { changed, wasVerificationRequired };
+}
+
+function markStoredAccountForbidden(
+  account: VerificationStoredAccount,
+  reason: string,
+): boolean {
+  let changed = false;
+
+  if (account.forbidden !== true) {
+    account.forbidden = true;
+    changed = true;
+  }
+  if (account.forbiddenAt === undefined) {
+    account.forbiddenAt = Date.now();
+    changed = true;
+  }
+
+  const normalizedReason = reason.trim();
+  if (account.forbiddenReason !== normalizedReason) {
+    account.forbiddenReason = normalizedReason;
+    changed = true;
+  }
+
+  if (account.verificationRequired !== false) {
+    account.verificationRequired = false;
+    changed = true;
+  }
+  if (account.verificationRequiredAt !== undefined) {
+    account.verificationRequiredAt = undefined;
+    changed = true;
+  }
+  if (account.verificationRequiredReason !== undefined) {
+    account.verificationRequiredReason = undefined;
+    changed = true;
+  }
+  if (account.verificationUrl !== undefined) {
+    account.verificationUrl = undefined;
+    changed = true;
+  }
+
+  if (account.enabled !== false) {
+    account.enabled = false;
+    changed = true;
+  }
+
+  return changed;
+}
+
+function clearStoredAccountForbidden(
+  account: VerificationStoredAccount,
+  enableIfRequired = false,
+): { changed: boolean; wasForbidden: boolean } {
+  const wasForbidden = account.forbidden === true;
+  let changed = false;
+
+  if (account.forbidden !== false) {
+    account.forbidden = false;
+    changed = true;
+  }
+  if (account.forbiddenAt !== undefined) {
+    account.forbiddenAt = undefined;
+    changed = true;
+  }
+  if (account.forbiddenReason !== undefined) {
+    account.forbiddenReason = undefined;
+    changed = true;
+  }
+
+  if (enableIfRequired && wasForbidden && account.enabled === false) {
+    account.enabled = true;
+    changed = true;
+  }
+
+  return { changed, wasForbidden };
 }
 
 async function promptOAuthCallbackValue(message: string): Promise<string> {
@@ -2974,6 +3082,51 @@ export const createAntigravityPlugin =
                           shouldSwitchAccount = true;
                           break;
                         }
+
+                        const forbiddenReason =
+                          extracted.message ??
+                          "Access forbidden (403). Account may be restricted or banned.";
+                        const cooldownMs = 30 * 60 * 1000;
+
+                        accountManager.markAccountForbidden(
+                          account.index,
+                          forbiddenReason,
+                        );
+                        accountManager.markAccountCoolingDown(
+                          account,
+                          cooldownMs,
+                          "auth-failure",
+                        );
+
+                        const label = account.email || `Account ${account.index + 1}`;
+                        if (accountManager.shouldShowAccountToast(account.index, 60000)) {
+                          await showToast(
+                            `⛔ ${label} got 403 forbidden. Account may be restricted/banned and was disabled.`,
+                            "warning",
+                          );
+                          accountManager.markToastShown(account.index);
+                        }
+
+                        pushDebug(
+                          `forbidden-403: disabled account ${account.index}`,
+                        );
+                        getHealthTracker().recordFailure(account.index);
+
+                        lastFailure = {
+                          response,
+                          streaming: prepared.streaming,
+                          debugContext,
+                          requestedModel: prepared.requestedModel,
+                          projectId: prepared.projectId,
+                          endpoint: prepared.endpoint,
+                          effectiveModel: prepared.effectiveModel,
+                          sessionId: prepared.sessionId,
+                          toolDebugMissing: prepared.toolDebugMissing,
+                          toolDebugSummary: prepared.toolDebugSummary,
+                          toolDebugPayload: prepared.toolDebugPayload,
+                        };
+                        shouldSwitchAccount = true;
+                        break;
                       }
 
                       const shouldRetryEndpoint =
@@ -3313,13 +3466,16 @@ export const createAntigravityPlugin =
                           | "rate-limited"
                           | "expired"
                           | "verification-required"
+                          | "forbidden"
                           | "unknown" = "unknown";
                         let rateLimitedFamilies: string[] | undefined;
                         let rateLimitResetIn:
                           | Record<string, number>
                           | undefined;
 
-                        if (acc.verificationRequired) {
+                        if (acc.forbidden) {
+                          status = "forbidden";
+                        } else if (acc.verificationRequired) {
                           status = "verification-required";
                         } else {
                           // Build rate-limit state from rateLimitResetTimes (429-based)
@@ -3681,6 +3837,72 @@ export const createAntigravityPlugin =
                     }
 
                     if (menuResult.mode === "manage") {
+                      if (menuResult.enableAll) {
+                        let changed = false;
+                        for (let i = 0; i < existingStorage.accounts.length; i++) {
+                          const acc = existingStorage.accounts[i];
+                          if (!acc || acc.enabled !== false) {
+                            continue;
+                          }
+                          acc.enabled = true;
+                          activeAccountManager?.setAccountEnabled(i, true);
+                          changed = true;
+                        }
+
+                        if (changed) {
+                          await saveAccounts(existingStorage);
+                          console.log("\nAll accounts have been enabled.\n");
+                        } else {
+                          console.log("\nAll accounts are already enabled.\n");
+                        }
+                      }
+
+                      if (menuResult.disableAll) {
+                        let changed = false;
+                        for (let i = 0; i < existingStorage.accounts.length; i++) {
+                          const acc = existingStorage.accounts[i];
+                          if (!acc || acc.enabled === false) {
+                            continue;
+                          }
+                          acc.enabled = false;
+                          activeAccountManager?.setAccountEnabled(i, false);
+                          changed = true;
+                        }
+
+                        if (changed) {
+                          await saveAccounts(existingStorage);
+                          console.log("\nAll accounts have been disabled.\n");
+                        } else {
+                          console.log("\nAll accounts are already disabled.\n");
+                        }
+                      }
+
+                      if (menuResult.selectAccountIndex !== undefined) {
+                        const acc =
+                          existingStorage.accounts[menuResult.selectAccountIndex];
+                        if (acc) {
+                          if (acc.enabled === false) {
+                            console.log(
+                              `\nAccount ${acc.email || menuResult.selectAccountIndex + 1} is disabled. Enable it first.\n`,
+                            );
+                          } else {
+                            existingStorage.activeIndex =
+                              menuResult.selectAccountIndex;
+                            existingStorage.activeIndexByFamily = {
+                              claude: menuResult.selectAccountIndex,
+                              gemini: menuResult.selectAccountIndex,
+                            };
+                            await saveAccounts(existingStorage);
+                            activeAccountManager?.setCurrentAccount(
+                              menuResult.selectAccountIndex,
+                            );
+                            console.log(
+                              `\nAccount ${acc.email || menuResult.selectAccountIndex + 1} set as current.\n`,
+                            );
+                          }
+                        }
+                      }
+
                       if (menuResult.toggleAccountIndex !== undefined) {
                         const acc =
                           existingStorage.accounts[
@@ -3749,18 +3971,21 @@ export const createAntigravityPlugin =
                             providerId,
                           );
                           if (verification.status === "ok") {
-                            const { changed, wasVerificationRequired } =
+                            const { changed: verificationChanged, wasVerificationRequired } =
                               clearStoredAccountVerificationRequired(
                                 account,
                                 true,
                               );
-                            if (changed) {
+                            const { changed: forbiddenChanged } =
+                              clearStoredAccountForbidden(account, true);
+                            if (verificationChanged || forbiddenChanged) {
                               storageUpdated = true;
                             }
                             activeAccountManager?.clearAccountVerificationRequired(
                               i,
                               wasVerificationRequired,
                             );
+                            activeAccountManager?.clearAccountForbidden(i, true);
                             okCount += 1;
                             console.log("ok");
                             continue;
@@ -3794,6 +4019,28 @@ export const createAntigravityPlugin =
                             continue;
                           }
 
+                          if (verification.status === "forbidden") {
+                            const changed = markStoredAccountForbidden(
+                              account,
+                              verification.message,
+                            );
+                            if (changed) {
+                              storageUpdated = true;
+                            }
+                            activeAccountManager?.markAccountForbidden(
+                              i,
+                              verification.message,
+                            );
+
+                            blockedCount += 1;
+                            console.log("403 forbidden");
+                            blockedResults.push({
+                              label,
+                              message: verification.message,
+                            });
+                            continue;
+                          }
+
                           errorCount += 1;
                           console.log(`error (${verification.message})`);
                         }
@@ -3803,11 +4050,11 @@ export const createAntigravityPlugin =
                         }
 
                         console.log(
-                          `\nVerification summary: ${okCount} ready, ${blockedCount} need verification, ${errorCount} errors.`,
+                          `\nVerification summary: ${okCount} ready, ${blockedCount} blocked (verification/403), ${errorCount} errors.`,
                         );
 
                         if (blockedResults.length > 0) {
-                          console.log("\nAccounts needing verification:");
+                          console.log("\nBlocked accounts:");
                           for (const result of blockedResults) {
                             console.log(`\n- ${result.label}`);
                             console.log(`  ${result.message}`);
@@ -3862,17 +4109,23 @@ export const createAntigravityPlugin =
                       );
 
                       if (verification.status === "ok") {
-                        const { changed, wasVerificationRequired } =
+                        const { changed: verificationChanged, wasVerificationRequired } =
                           clearStoredAccountVerificationRequired(account, true);
-                        if (changed) {
+                        const { changed: forbiddenChanged, wasForbidden } =
+                          clearStoredAccountForbidden(account, true);
+                        if (verificationChanged || forbiddenChanged) {
                           await saveAccounts(existingStorage);
                         }
                         activeAccountManager?.clearAccountVerificationRequired(
                           verifyAccountIndex,
                           wasVerificationRequired,
                         );
+                        activeAccountManager?.clearAccountForbidden(
+                          verifyAccountIndex,
+                          wasForbidden,
+                        );
 
-                        if (wasVerificationRequired) {
+                        if (wasVerificationRequired || wasForbidden) {
                           console.log(
                             `✓ ${label} is ready for requests and has been re-enabled.\n`,
                           );
@@ -3927,6 +4180,31 @@ export const createAntigravityPlugin =
                             "No verification URL was returned. Try re-authenticating this account.\n",
                           );
                         }
+                        continue;
+                      }
+
+                      if (verification.status === "forbidden") {
+                        const changed = markStoredAccountForbidden(
+                          account,
+                          verification.message,
+                        );
+                        if (changed) {
+                          await saveAccounts(existingStorage);
+                        }
+                        activeAccountManager?.markAccountForbidden(
+                          verifyAccountIndex,
+                          verification.message,
+                        );
+
+                        console.log(
+                          `⛔ ${label} returned 403 forbidden and has been disabled.`,
+                        );
+                        if (verification.message) {
+                          console.log(verification.message);
+                        }
+                        console.log(
+                          "This usually means the account is restricted/banned for this API path.\n",
+                        );
                         continue;
                       }
 
@@ -4228,24 +4506,29 @@ export const createAntigravityPlugin =
                         const updatedAccounts = [...currentStorage.accounts];
                         const parts = parseRefreshParts(result.refresh);
                         if (parts.refreshToken) {
+                          const existingAccount =
+                            updatedAccounts[refreshAccountIndex];
                           updatedAccounts[refreshAccountIndex] = {
-                            email:
-                              result.email ??
-                              updatedAccounts[refreshAccountIndex]?.email,
+                            ...existingAccount,
+                            email: result.email ?? existingAccount?.email,
                             refreshToken: parts.refreshToken,
                             projectId:
-                              parts.projectId ??
-                              updatedAccounts[refreshAccountIndex]?.projectId,
+                              parts.projectId ?? existingAccount?.projectId,
                             managedProjectId:
                               parts.managedProjectId ??
-                              updatedAccounts[refreshAccountIndex]
-                                ?.managedProjectId,
-                            addedAt:
-                              updatedAccounts[refreshAccountIndex]?.addedAt ??
-                              Date.now(),
+                              existingAccount?.managedProjectId,
+                            addedAt: existingAccount?.addedAt ?? Date.now(),
                             lastUsed: Date.now(),
+                            enabled: true,
+                            verificationRequired: false,
+                            verificationRequiredAt: undefined,
+                            verificationRequiredReason: undefined,
+                            verificationUrl: undefined,
+                            forbidden: false,
+                            forbiddenAt: undefined,
+                            forbiddenReason: undefined,
                           };
-                          await saveAccounts({
+                          await saveAccountsReplace({
                             version: 4,
                             accounts: updatedAccounts,
                             activeIndex: currentStorage.activeIndex,

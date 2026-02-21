@@ -4,72 +4,80 @@
 [![npm beta](https://img.shields.io/npm/v/opencode-ag-auth/beta.svg?label=beta)](https://www.npmjs.com/package/opencode-ag-auth)
 [![npm downloads](https://img.shields.io/npm/dw/opencode-ag-auth.svg)](https://www.npmjs.com/package/opencode-ag-auth)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![X (Twitter)](https://img.shields.io/badge/X-@dopesalmon-000000?style=flat&logo=x)](https://x.com/dopesalmon)
+[![GitHub](https://img.shields.io/badge/GitHub-tamaproject360-181717?style=flat&logo=github)](https://github.com/tamaproject360)
 
-**The Hardened, Safety-First Antigravity Plugin for OpenCode.**
+**Plugin Antigravity untuk OpenCode yang fokus pada keamanan dan stabilitas.**
 
-Enable OpenCode to authenticate against **Antigravity** (Google's IDE) with enterprise-grade **account protection** and **session stability**. Access models like `gemini-3.1-pro` and `claude-opus-4-6-thinking` while keeping your accounts safe from bans and your agents running without interruption.
+Plugin ini membantu OpenCode login ke **Antigravity** (IDE Google) dengan perlindungan akun dan sesi yang lebih stabil. Anda bisa memakai model seperti `gemini-3.1-pro` dan `claude-opus-4-6-thinking` dengan risiko yang lebih terkontrol.
 
-## Why this Fork?
+## Kenapa Fork Ini?
 
-This is a specialized fork of `opencode-antigravity-auth` focused on **Safety** and **Reliability** for power users and autonomous agents.
+Ini adalah fork khusus dari `opencode-antigravity-auth` yang fokus ke **safety** dan **reliability** untuk penggunaan harian, termasuk workflow agent.
 
-### 🛡️ Enhanced Protection
-- **Strict Quota Protocol (SQP)**: Enforces a **70% safety buffer** on API usage. Accounts are strictly locked *before* they hit Google's abuse limits.
-- **Leak-Proof Locking**: Locked accounts are ignored until their specific reset time passes, preventing "leaky" usage from cache expiry.
+### 🛡️ Perlindungan yang Ditingkatkan
+- **Strict Quota Protocol (SQP)**: Menerapkan **safety buffer 70%** pada pemakaian API. Akun akan dikunci sebelum menyentuh batas abuse Google.
+- **Leak-Proof Locking**: Akun yang terkunci diabaikan sampai waktu reset spesifiknya lewat, sehingga tidak terjadi penggunaan "bocor" akibat cache kedaluwarsa.
 
-### ⚡ Agent Stability
-- **Oh-My-OpenCode Integration**: Native support for session recovery. Automatically handles tool crashes and model "thinking" blocks without user intervention.
-- **Smart Proxy Support**: Enterprise-ready `undici` proxy support for complex network environments.
-- **Interactive Pause**: Gracefully pauses execution when quotas run low, allowing human intervention instead of crashing.
+### ⚡ Stabilitas Agent
+- **Integrasi Oh-My-OpenCode**: Dukungan native untuk session recovery. Menangani crash tool dan blok "thinking" model secara otomatis.
+- **Smart Proxy Support**: Dukungan proxy `undici` yang siap untuk kebutuhan jaringan kompleks.
+- **Interactive Pause**: Eksekusi dapat pause secara elegan saat quota menipis, sehingga tidak langsung crash.
 
-## Key Features
+## Fitur Utama
 
-- **All Antigravity Models**: Claude Opus 4.6, Sonnet 4.6, and Gemini 3.1 Pro/Flash via Google OAuth.
-- **Thinking Models**: Configurable thinking budgets for complex reasoning tasks.
-- **Multi-Account Rotation**: Add unlimited Google accounts; the plugin auto-rotates based on health and quota.
-- **Dual Quota Pools**: Intelligently routes between Antigravity and Gemini CLI quotas.
-- **Google Search Grounding**: Enable real-time web search for Gemini models.
+- **Semua Model Antigravity**: Claude Opus 4.6, Sonnet 4.6, serta Gemini 3.1 Pro/Flash via Google OAuth.
+- **Thinking Models**: Budget thinking dapat dikonfigurasi untuk tugas penalaran kompleks.
+- **Rotasi Multi-Akun**: Tambahkan akun Google tanpa batas; rotasi akun otomatis berdasarkan health dan quota.
+- **Dual Quota Pools**: Routing cerdas antara quota Antigravity dan Gemini CLI.
+- **Google Search Grounding**: Aktifkan pencarian web real-time untuk model Gemini.
+
+## Progress & Pengembangan Terbaru
+
+- **Pemilihan akun manual** langsung dari `opencode auth login` lewat tombol *Use this account now*.
+- **Status akun lebih jelas**: ada label `[403 forbidden]`, `[needs verification]`, `[rate-limited]`, serta toggle enable/disable massal (Enable all / Disable all).
+- **Proteksi refresh token**: saat refresh berhasil, akun otomatis aktif lagi dan flag verifikasi/forbidden di-reset.
+- **Soft quota** bawa default 70% dengan opsi override di `antigravity.json`, plus prompt error yang menjelaskan cara menonaktifkan.
+- **Menu tindakan baru**: cepat memverifikasi satu akun, semua akun, dan cek quota dengan log terperinci.
 
 ---
 
 <details open>
-<summary><b>⚠️ Terms of Service Warning — Read Before Installing</b></summary>
+<summary><b>⚠️ Peringatan Terms of Service — Baca Sebelum Install</b></summary>
 
 > [!CAUTION]
-> Using this plugin may violate Google's Terms of Service. A small number of users have reported their Google accounts being **banned** or **shadow-banned** (restricted access without explicit notification).
+> Penggunaan plugin ini dapat melanggar Terms of Service Google. Sejumlah kecil pengguna melaporkan akun Google mereka **dibanned** atau **shadow-banned** (akses dibatasi tanpa notifikasi eksplisit).
 >
-> **High-risk scenarios:**
-> - 🚨 **Fresh Google accounts** have a very high chance of getting banned
-> - 🚨 **New accounts with Pro/Ultra subscriptions** are frequently flagged and banned
+> **Skenario berisiko tinggi:**
+> - 🚨 **Akun Google baru** punya peluang ban yang sangat tinggi
+> - 🚨 **Akun baru dengan langganan Pro/Ultra** sering ter-flag dan dibanned
 >
-> **By using this plugin, you acknowledge:**
-> - This is an unofficial tool not endorsed by Google
-> - Your account may be suspended or permanently banned
-> - You assume all risks associated with using this plugin
+> **Dengan menggunakan plugin ini, Anda memahami bahwa:**
+> - Ini adalah tool tidak resmi dan tidak didukung Google
+> - Akun Anda bisa disuspend atau diban permanen
+> - Seluruh risiko penggunaan menjadi tanggung jawab Anda
 >
-> **Recommendation:** Use an established Google account that you don't rely on for critical services. Avoid creating new accounts specifically for this plugin.
+> **Rekomendasi:** Gunakan akun Google yang sudah mapan dan bukan akun untuk layanan kritikal. Hindari membuat akun baru khusus untuk plugin ini.
 
 </details>
 
 ---
 
-## Installation
+## Instalasi
 
 <details open>
-<summary><b>For Humans</b></summary>
+<summary><b>Untuk Pengguna</b></summary>
 
-**Option A: Let an LLM do it**
+**Opsi A: Biarkan LLM yang mengerjakan**
 
-Paste this into any LLM agent (Claude Code, OpenCode, Cursor, etc.):
+Tempel prompt berikut ke agent LLM apa pun (Claude Code, OpenCode, Cursor, dll):
 
 ```
-Install the opencode-ag-auth plugin and add the Antigravity model definitions to ~/.config/opencode/opencode.json by following: https://raw.githubusercontent.com/andyvandaric/opencode-ag-auth/main/README.md
+Install the opencode-ag-auth plugin and add the Antigravity model definitions to ~/.config/opencode/opencode.json by following: https://raw.githubusercontent.com/tamaproject360/opencode-ag-auth/main/README.md
 ```
 
-**Option B: Manual setup (NPM)**
+**Opsi B: Setup manual (NPM)**
 
-1. **Add the plugin** to `~/.config/opencode/opencode.json` (OpenCode will auto-install from NPM):
+1. **Tambahkan plugin** ke `~/.config/opencode/opencode.json` (OpenCode akan auto-install dari NPM):
 
    ```json
    {
@@ -77,19 +85,19 @@ Install the opencode-ag-auth plugin and add the Antigravity model definitions to
    }
    ```
 
-   > Want bleeding-edge features? Use `opencode-ag-auth@beta` instead.
+   > Ingin fitur paling baru? Gunakan `opencode-ag-auth@beta`.
 
-2. **Login** with your Google account:
+2. **Login** dengan akun Google Anda:
 
    ```bash
    opencode auth login
    ```
 
-3. **Add models** — choose one:
-   - Run `opencode auth login` → select **"Configure models in opencode.json"** (auto-configures all models)
-   - Or manually copy the [full configuration](#models) below
+3. **Tambahkan model** — pilih salah satu:
+   - Jalankan `opencode auth login` → pilih **"Configure models in opencode.json"** (otomatis menambahkan semua model)
+   - Atau copy manual dari [konfigurasi lengkap](#models) di bawah
 
-4. **Use it:**
+4. **Gunakan plugin:**
 
    ```bash
    opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
@@ -98,21 +106,21 @@ Install the opencode-ag-auth plugin and add the Antigravity model definitions to
 </details>
 
 <details>
-<summary><b>For LLM Agents</b></summary>
+<summary><b>Untuk Agent LLM</b></summary>
 
-### Step-by-Step Instructions
+### Langkah Implementasi
 
-1. Edit the OpenCode configuration file at `~/.config/opencode/opencode.json`
-   
-   > **Note**: This path works on all platforms. On Windows, `~` resolves to your user home directory (e.g., `C:\Users\YourName`).
+1. Edit file konfigurasi OpenCode di `~/.config/opencode/opencode.json`
 
-2. Add the plugin to the `plugin` array
+   > **Catatan**: Path ini berlaku di semua platform. Di Windows, `~` akan resolve ke home user (misalnya `C:\Users\YourName`).
 
-3. Add the model definitions from the [Full models configuration](#models) section
+2. Tambahkan plugin ke array `plugin`
 
-4. Set `provider` to `"google"` and choose a model
+3. Tambahkan definisi model dari bagian [Full models configuration](#models)
 
-### Verification
+4. Set `provider` ke `"google"` dan pilih model default
+
+### Verifikasi
 
 ```bash
 opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
@@ -121,52 +129,52 @@ opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --var
 </details>
 
 
-For a complete installation guide, including manual methods and advanced agent protocols, see [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Untuk panduan instalasi lengkap (termasuk metode manual dan protokol lanjutan untuk agent), lihat [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ---
 
 ## Models
 
-### Model Reference
+### Referensi Model
 
-**Antigravity quota** (default routing for Claude and Gemini):
+**Quota Antigravity** (routing default untuk Claude dan Gemini):
 
-| Model | Variants | Notes |
-|-------|----------|-------|
-| `antigravity-gemini-3.1-pro` | low, high | Gemini 3.1 Pro with thinking |
-| `antigravity-gemini-3-flash` | minimal, low, medium, high | Gemini 3 Flash with thinking |
+| Model | Variants | Catatan |
+|-------|----------|---------|
+| `antigravity-gemini-3.1-pro` | low, high | Gemini 3.1 Pro dengan thinking |
+| `antigravity-gemini-3-flash` | minimal, low, medium, high | Gemini 3 Flash dengan thinking |
 | `antigravity-claude-sonnet-4-6` | — | Claude Sonnet 4.6 |
-| `antigravity-claude-sonnet-4-6-thinking` | low, max | Claude Sonnet with extended thinking |
+| `antigravity-claude-sonnet-4-6-thinking` | low, max | Claude Sonnet dengan extended thinking |
 
-| `antigravity-claude-opus-4-6-thinking` | low, max | Claude Opus 4.6 with extended thinking |
+| `antigravity-claude-opus-4-6-thinking` | low, max | Claude Opus 4.6 dengan extended thinking |
 
-**Gemini CLI quota** (separate from Antigravity; used when `cli_first` is true or as fallback):
+**Quota Gemini CLI** (terpisah dari Antigravity; dipakai saat `cli_first` true atau saat fallback):
 
-| Model | Notes |
-|-------|-------|
+| Model | Catatan |
+|-------|---------|
 | `gemini-2.5-flash` | Gemini 2.5 Flash |
 | `gemini-2.5-pro` | Gemini 2.5 Pro |
 | `gemini-3-flash-preview` | Gemini 3 Flash (preview) |
 | `gemini-3.1-pro-preview` | Gemini 3.1 Pro (preview) |
 
-> **Routing Behavior:**
-> - **Antigravity-first (default):** Gemini models use Antigravity quota across accounts.
-> - **CLI-first (`cli_first: true`):** Gemini models use Gemini CLI quota first.
-> - When a Gemini quota pool is exhausted, the plugin automatically falls back to the other pool.
-> - Claude and image models always use Antigravity.
-> Model names are automatically transformed for the target API (e.g., `antigravity-gemini-3-flash` → `gemini-3-flash-preview` for CLI).
+> **Perilaku Routing:**
+> - **Antigravity-first (default):** model Gemini memakai quota Antigravity lintas akun.
+> - **CLI-first (`cli_first: true`):** model Gemini memakai quota Gemini CLI terlebih dahulu.
+> - Saat salah satu pool quota Gemini habis, plugin otomatis fallback ke pool lainnya.
+> - Model Claude dan image selalu lewat Antigravity.
+> Nama model ditransformasikan otomatis sesuai API tujuan (contoh: `antigravity-gemini-3-flash` → `gemini-3-flash-preview` untuk CLI).
 
-**Using variants:**
+**Contoh pakai varian:**
 ```bash
 opencode run "Hello" --model=google/antigravity-claude-sonnet-4-6-thinking --variant=max
 ```
 
-For details on variant configuration and thinking levels, see [docs/MODEL-VARIANTS.md](docs/MODEL-VARIANTS.md).
+Detail konfigurasi variant dan level thinking ada di [docs/MODEL-VARIANTS.md](docs/MODEL-VARIANTS.md).
 
 <details>
-<summary><b>Full models configuration (copy-paste ready)</b></summary>
+<summary><b>Full models configuration (siap copy-paste)</b></summary>
 
-Add this to your `~/.config/opencode/opencode.json`:
+Tambahkan ini ke `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -245,7 +253,7 @@ Add this to your `~/.config/opencode/opencode.json`:
 }
 ```
 
-> **Backward Compatibility:** Legacy model names with `antigravity-` prefix (e.g., `antigravity-gemini-3-flash`) still work. The plugin automatically handles model name transformation for both Antigravity and Gemini CLI APIs.
+> **Backward Compatibility:** Nama model legacy dengan prefix `antigravity-` (mis. `antigravity-gemini-3-flash`) tetap didukung. Plugin akan melakukan transformasi nama model otomatis untuk API Antigravity dan Gemini CLI.
 
 </details>
 
@@ -253,28 +261,28 @@ Add this to your `~/.config/opencode/opencode.json`:
 
 ## Multi-Account Setup
 
-Add multiple Google accounts for higher combined quotas. The plugin automatically rotates between accounts when one is rate-limited.
+Tambahkan beberapa akun Google untuk menambah quota gabungan. Plugin akan merotasi akun secara otomatis saat salah satu akun rate-limited.
 
 ```bash
-opencode auth login  # Run again to add more accounts
+opencode auth login  # Jalankan lagi untuk menambah akun
 ```
 
-**Account management options (via `opencode auth login`):**
-- **Configure models** — Auto-configure all plugin models in opencode.json
-- **Check quotas** — View remaining API quota for each account
-- **Manage accounts** — Enable/disable specific accounts for rotation
+**Opsi manajemen akun (via `opencode auth login`):**
+- **Configure models** — Konfigurasi otomatis semua model plugin di `opencode.json`
+- **Check quotas** — Lihat sisa quota API setiap akun
+- **Manage accounts** — Enable/disable akun tertentu untuk rotasi
 
-For details on load balancing, dual quota pools, and account storage, see [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md).
+Detail load balancing, dual quota pools, dan penyimpanan akun ada di [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md).
 
 ---
 
 ## Troubleshoot
 
-> **Quick Reset**: Most issues can be resolved by deleting `~/.config/opencode/antigravity-accounts.json` and running `opencode auth login` again.
+> **Quick Reset**: Sebagian besar masalah selesai dengan menghapus `~/.config/opencode/antigravity-accounts.json` lalu login ulang lewat `opencode auth login`.
 
-### Configuration Path (All Platforms)
+### Path Konfigurasi (Semua Platform)
 
-OpenCode uses `~/.config/opencode/` on **all platforms** including Windows.
+OpenCode menggunakan `~/.config/opencode/` di **semua platform**, termasuk Windows.
 
 | File | Path |
 |------|------|
@@ -283,23 +291,23 @@ OpenCode uses `~/.config/opencode/` on **all platforms** including Windows.
 | Plugin config | `~/.config/opencode/antigravity.json` |
 | Debug logs | `~/.config/opencode/antigravity-logs/` |
 
-> **Windows users**: `~` resolves to your user home directory (e.g., `C:\Users\YourName`). Do NOT use `%APPDATA%`.
+> **Pengguna Windows**: `~` akan resolve ke home user (mis. `C:\Users\YourName`). Jangan gunakan `%APPDATA%`.
 
-> **Custom path**: Set `OPENCODE_CONFIG_DIR` environment variable to use a custom location.
+> **Custom path**: set environment variable `OPENCODE_CONFIG_DIR` untuk memakai lokasi config khusus.
 
-> **Windows migration**: If upgrading from plugin v1.3.x or earlier, the plugin will automatically find your existing config in `%APPDATA%\opencode\` and use it. New installations use `~/.config/opencode/`.
+> **Migrasi Windows**: Jika upgrade dari plugin v1.3.x atau lebih lama, plugin akan otomatis mencari config lama di `%APPDATA%\opencode\` dan memakainya. Instalasi baru tetap memakai `~/.config/opencode/`.
 
 ---
 
-### Multi-Account Auth Issues
+### Masalah Auth Multi-Akun
 
-If you encounter authentication issues with multiple accounts:
+Jika ada masalah autentikasi pada multi-akun:
 
-1. Delete the accounts file:
+1. Hapus file akun:
    ```bash
    rm ~/.config/opencode/antigravity-accounts.json
    ```
-2. Re-authenticate:
+2. Login ulang:
    ```bash
    opencode auth login
    ```
@@ -310,17 +318,17 @@ If you encounter authentication issues with multiple accounts:
 
 **Error:**
 ```
-Permission 'cloudaicompanion.companions.generateChat' denied on resource 
+Permission 'cloudaicompanion.companions.generateChat' denied on resource
 '//cloudaicompanion.googleapis.com/projects/rising-fact-p41fc/locations/global'
 ```
 
-**Cause:** Plugin falls back to a default project ID when no valid project is found. This works for Antigravity but fails for Gemini CLI models.
+**Penyebab:** Plugin fallback ke project ID default saat project valid tidak ditemukan. Ini bisa jalan di Antigravity, tapi gagal untuk model Gemini CLI.
 
-**Solution:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create or select a project
-3. Enable the **Gemini for Google Cloud API** (`cloudaicompanion.googleapis.com`)
-4. Add `projectId` to your accounts file:
+**Solusi:**
+1. Buka [Google Cloud Console](https://console.cloud.google.com/)
+2. Buat atau pilih project
+3. Aktifkan **Gemini for Google Cloud API** (`cloudaicompanion.googleapis.com`)
+4. Tambahkan `projectId` ke file akun:
    ```json
    {
      "accounts": [
@@ -333,13 +341,13 @@ Permission 'cloudaicompanion.companions.generateChat' denied on resource
    }
    ```
 
-> **Note**: Do this for each account in a multi-account setup.
+> **Catatan**: Lakukan ini untuk setiap akun pada setup multi-akun.
 
 ---
 
 ### Gemini Model Not Found
 
-Add this to your `google` provider config:
+Tambahkan ini pada konfigurasi provider `google` Anda:
 
 ```json
 {
@@ -361,72 +369,72 @@ Add this to your `google` provider config:
 Invalid JSON payload received. Unknown name "parameters" at 'request.tools[0]'
 ```
 
-**Causes:**
-- Tool schema incompatibility with Gemini's strict protobuf validation
-- MCP servers with malformed schemas
-- Plugin version regression
+**Penyebab umum:**
+- Skema tool tidak kompatibel dengan validasi protobuf ketat di Gemini
+- MCP server mengirim skema malformed
+- Regresi versi plugin
 
-**Solutions:**
-1. **Update to latest beta:**
+**Solusi:**
+1. **Update ke beta terbaru:**
    ```json
    { "plugin": ["opencode-ag-auth@beta"] }
    ```
 
-2. **Disable MCP servers** one-by-one to find the problematic one
+2. **Disable MCP server** satu per satu untuk menemukan sumber masalah
 
-3. **Add npm override:**
+3. **Tambahkan npm override:**
    ```json
    { "provider": { "google": { "npm": "@ai-sdk/google" } } }
    ```
 
 ---
 
-### MCP Servers Causing Errors
+### Error Akibat MCP Server
 
-Some MCP servers have schemas incompatible with Antigravity's strict JSON format.
+Beberapa MCP server memiliki schema yang tidak kompatibel dengan format JSON ketat Antigravity.
 
-**Common symptom:**
+**Gejala umum:**
 ```bash
 Invalid function name must start with a letter or underscore
 ```
 
-Sometimes it shows up as:
+Kadang muncul sebagai:
 ```bash
 GenerateContentRequest.tools[0].function_declarations[12].name: Invalid function name must start with a letter or underscore
 ```
 
-This usually means an MCP tool name starts with a number (for example, a 1mcp key like `1mcp_*`). Rename the MCP key to start with a letter (e.g., `gw`) or disable that MCP entry for Antigravity models.
+Biasanya ini berarti nama tool MCP diawali angka (misalnya key `1mcp_*`). Ubah key MCP agar diawali huruf (mis. `gw`) atau disable entri MCP tersebut untuk model Antigravity.
 
-**Diagnosis:**
-1. Disable all MCP servers in your config
-2. Enable one-by-one until error reappears
-3. Report the specific MCP in a [GitHub issue](https://github.com/andyvandaric/opencode-ag-auth/issues)
+**Langkah diagnosis:**
+1. Disable semua MCP server di config
+2. Aktifkan satu per satu sampai error muncul lagi
+3. Laporkan MCP terkait di [GitHub issue](https://github.com/tamaproject360/opencode-ag-auth/issues)
 
 ---
 
-### "All Accounts Rate-Limited" (But Quota Available)
+### "All Accounts Rate-Limited" (Padahal Quota Masih Ada)
 
-**Cause:** Cascade bug in `clearExpiredRateLimits()` in hybrid mode (fixed in recent beta).
+**Penyebab:** Bug cascade pada `clearExpiredRateLimits()` di mode hybrid (sudah diperbaiki di beta terbaru).
 
-**Solutions:**
-1. Update to latest beta version
-2. If persists, delete accounts file and re-authenticate
-3. Try switching `account_selection_strategy` to `"sticky"` in `antigravity.json`
+**Solusi:**
+1. Update ke versi beta terbaru
+2. Jika masih terjadi, hapus file akun lalu login ulang
+3. Coba ubah `account_selection_strategy` ke `"sticky"` di `antigravity.json`
 
 ---
 
 ### Session Recovery
 
-If you encounter errors during a session:
-1. Type `continue` to trigger the recovery mechanism
-2. If blocked, use `/undo` to revert to pre-error state
-3. Retry the operation
+Jika muncul error saat sesi berjalan:
+1. Ketik `continue` untuk memicu mekanisme recovery
+2. Jika masih blocked, pakai `/undo` untuk kembali ke state sebelum error
+3. Coba ulang operasinya
 
 ---
 
-### Using with Oh-My-OpenCode
+### Penggunaan dengan Oh-My-OpenCode
 
-**Important:** Disable the built-in Google auth to prevent conflicts:
+**Penting:** Nonaktifkan built-in Google auth agar tidak konflik:
 
 ```json
 // ~/.config/opencode/oh-my-opencode.json
@@ -442,53 +450,53 @@ If you encounter errors during a session:
 
 ---
 
-### Infinite `.tmp` Files Created
+### File `.tmp` Terus Bertambah
 
-**Cause:** When account is rate-limited and plugin retries infinitely, it creates many temp files.
+**Penyebab:** Saat akun rate-limited dan plugin terus retry, file temp bisa menumpuk.
 
 **Workaround:**
 1. Stop OpenCode
-2. Clean up: `rm ~/.config/opencode/*.tmp`
-3. Add more accounts or wait for rate limit to expire
+2. Bersihkan: `rm ~/.config/opencode/*.tmp`
+3. Tambah akun lain atau tunggu rate limit selesai
 
 ---
 
-### OAuth Callback Issues
+### Masalah OAuth Callback
 
 <details>
-<summary><b>Safari OAuth Callback Fails (macOS)</b></summary>
+<summary><b>Safari OAuth Callback Gagal (macOS)</b></summary>
 
-**Symptoms:**
-- "fail to authorize" after successful Google login
-- Safari shows "Safari can't open the page"
+**Gejala:**
+- "fail to authorize" setelah login Google berhasil
+- Safari menampilkan "Safari can't open the page"
 
-**Cause:** Safari's "HTTPS-Only Mode" blocks `http://localhost` callback.
+**Penyebab:** Fitur "HTTPS-Only Mode" Safari memblokir callback `http://localhost`.
 
-**Solutions:**
+**Solusi:**
 
-1. **Use Chrome or Firefox** (easiest):
-   Copy the OAuth URL and paste into a different browser.
+1. **Gunakan Chrome atau Firefox** (paling mudah):
+   Salin URL OAuth lalu buka di browser lain.
 
-2. **Disable HTTPS-Only Mode temporarily:**
+2. **Nonaktifkan HTTPS-Only Mode sementara:**
    - Safari > Settings (⌘,) > Privacy
    - Uncheck "Enable HTTPS-Only Mode"
-   - Run `opencode auth login`
-   - Re-enable after authentication
+   - Jalankan `opencode auth login`
+   - Aktifkan lagi setelah autentikasi selesai
 
 </details>
 
 <details>
-<summary><b>Port Conflict (Address Already in Use)</b></summary>
+<summary><b>Konflik Port (Address Already in Use)</b></summary>
 
 **macOS / Linux:**
 ```bash
-# Find process using the port
+# Cari proses yang memakai port
 lsof -i :51121
 
-# Kill if stale
+# Kill jika stale
 kill -9 <PID>
 
-# Retry
+# Coba lagi
 opencode auth login
 ```
 
@@ -504,11 +512,11 @@ opencode auth login
 <details>
 <summary><b>Docker / WSL2 / Remote Development</b></summary>
 
-OAuth callback requires browser to reach `localhost` on the machine running OpenCode.
+OAuth callback membutuhkan browser bisa mengakses `localhost` pada mesin yang menjalankan OpenCode.
 
 **WSL2:**
-- Use VS Code's port forwarding, or
-- Configure Windows → WSL port forwarding
+- Gunakan port forwarding di VS Code, atau
+- Konfigurasikan forwarding Windows → WSL
 
 **SSH / Remote:**
 ```bash
@@ -516,16 +524,16 @@ ssh -L 51121:localhost:51121 user@remote
 ```
 
 **Docker / Containers:**
-- OAuth with localhost redirect doesn't work in containers
-- Wait 30s for manual URL flow, or use SSH port forwarding
+- OAuth dengan localhost redirect umumnya tidak jalan di container
+- Tunggu 30 detik untuk alur URL manual, atau gunakan SSH port forwarding
 
 </details>
 
 ---
 
-### Configuration Key Typo: `plugin` not `plugins`
+### Typo Key Konfigurasi: `plugin` bukan `plugins`
 
-The correct key is `plugin` (singular):
+Key yang benar adalah `plugin` (singular):
 
 ```json
 {
@@ -533,27 +541,27 @@ The correct key is `plugin` (singular):
 }
 ```
 
-**Not** `"plugins"` (will cause "Unrecognized key" error).
+**Bukan** `"plugins"` (akan memicu error "Unrecognized key").
 
 ---
 
-### Migrating Accounts Between Machines
+### Migrasi Akun Antar Mesin
 
-When copying `antigravity-accounts.json` to a new machine:
-1. Ensure the plugin is installed: `"plugin": ["opencode-ag-auth@beta"]`
-2. Copy `~/.config/opencode/antigravity-accounts.json`
-3. If you get "API key missing" error, the refresh token may be invalid — re-authenticate
+Saat menyalin `antigravity-accounts.json` ke mesin baru:
+1. Pastikan plugin terpasang: `"plugin": ["opencode-ag-auth@beta"]`
+2. Salin `~/.config/opencode/antigravity-accounts.json`
+3. Jika muncul error "API key missing", kemungkinan refresh token invalid — lakukan re-auth
 
-## Known Plugin Interactions
-For details on load balancing, dual quota pools, and account storage, see [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md).
+## Interaksi Plugin yang Perlu Diperhatikan
+Detail load balancing, dual quota pools, dan storage akun ada di [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md).
 
 ---
 
-## Plugin Compatibility
+## Kompatibilitas Plugin
 
 ### @tarquinen/opencode-dcp
 
-DCP creates synthetic assistant messages that lack thinking blocks. **List this plugin BEFORE DCP:**
+DCP membuat synthetic assistant message tanpa thinking blocks. **Pastikan plugin ini berada SEBELUM DCP:**
 
 ```json
 {
@@ -566,7 +574,7 @@ DCP creates synthetic assistant messages that lack thinking blocks. **List this 
 
 ### oh-my-opencode
 
-Disable built-in auth and override agent models in `oh-my-opencode.json`:
+Nonaktifkan built-in auth dan override model agent di `oh-my-opencode.json`:
 
 ```json
 {
@@ -579,77 +587,77 @@ Disable built-in auth and override agent models in `oh-my-opencode.json`:
 }
 ```
 
-> **Tip:** When spawning parallel subagents, enable `pid_offset_enabled: true` in `antigravity.json` to distribute sessions across accounts.
+> **Tip:** Saat menjalankan subagent paralel, aktifkan `pid_offset_enabled: true` di `antigravity.json` agar distribusi sesi ke akun lebih merata.
 
-### Plugins you don't need
+### Plugin yang tidak perlu dipasang
 
-- **gemini-auth plugins** — Not needed. This plugin handles all Google OAuth.
+- **gemini-auth plugins** — Tidak diperlukan. Plugin ini sudah menangani seluruh flow Google OAuth.
 
 ---
 
-## Configuration
+## Konfigurasi
 
-Create `~/.config/opencode/antigravity.json` for optional settings:
+Buat file `~/.config/opencode/antigravity.json` untuk pengaturan opsional:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/andyvandaric/opencode-ag-auth/main/assets/antigravity.schema.json"
+  "$schema": "https://raw.githubusercontent.com/tamaproject360/opencode-ag-auth/main/assets/antigravity.schema.json"
 }
 ```
 
-Most users don't need to configure anything — defaults work well.
+Mayoritas pengguna tidak perlu mengubah apa pun — default sudah memadai.
 
-### Model Behavior
+### Perilaku Model
 
-| Option | Default | What it does |
-|--------|---------|--------------
-| `keep_thinking` | `false` | Preserve Claude's thinking across turns. **Warning:** enabling may degrade model stability. |
-| `session_recovery` | `true` | Auto-recover from tool errors |
-| `cli_first` | `false` | Route Gemini models to Gemini CLI first (Claude and image models stay on Antigravity). |
+| Option | Default | Fungsi |
+|--------|---------|--------|
+| `keep_thinking` | `false` | Menjaga thinking Claude lintas turn. **Peringatan:** mengaktifkan ini bisa menurunkan stabilitas model. |
+| `session_recovery` | `true` | Recovery otomatis saat tool error |
+| `cli_first` | `false` | Route model Gemini ke Gemini CLI terlebih dahulu (model Claude dan image tetap lewat Antigravity). |
 
-### Account Rotation
+### Rotasi Akun
 
-| Your Setup | Recommended Config |
-|------------|-------------------|
+| Setup Anda | Rekomendasi |
+|------------|-------------|
 | **1 account** | `"account_selection_strategy": "sticky"` |
-| **2-5 accounts** | Default (`"hybrid"`) works great |
+| **2-5 accounts** | Default (`"hybrid"`) sudah optimal |
 | **5+ accounts** | `"account_selection_strategy": "round-robin"` |
-| **Parallel agents** | Add `"pid_offset_enabled": true` |
+| **Parallel agents** | Tambahkan `"pid_offset_enabled": true` |
 
-### Quota Protection
+### Proteksi Quota
 
-| Option | Default | What it does |
-|--------|---------|--------------|
-| `soft_quota_threshold_percent` | `90` | Skip account when quota usage exceeds this percentage. Prevents Google from penalizing accounts that fully exhaust quota. Set to `100` to disable. |
-| `quota_refresh_interval_minutes` | `15` | Background quota refresh interval. After successful API requests, refreshes quota cache if older than this interval. Set to `0` to disable. |
-| `soft_quota_cache_ttl_minutes` | `"auto"` | How long quota cache is considered fresh. `"auto"` = max(2 × refresh interval, 10 minutes). Set a number (1-120) for fixed TTL. |
+| Option | Default | Fungsi |
+|--------|---------|--------|
+| `soft_quota_threshold_percent` | `70` | Skip akun saat usage quota melewati persentase ini. Mencegah akun menyentuh batas penuh yang berisiko penalti. Set `100` untuk menonaktifkan. |
+| `quota_refresh_interval_minutes` | `15` | Interval refresh quota di background. Setelah request sukses, cache quota akan direfresh jika sudah lebih tua dari interval ini. Set `0` untuk nonaktif. |
+| `soft_quota_cache_ttl_minutes` | `"auto"` | Durasi cache quota dianggap fresh. `"auto"` = max(2 × refresh interval, 10 menit). Bisa diisi angka tetap (1-120). |
 
-> **How it works**: Quota cache is refreshed automatically after API requests (when older than `quota_refresh_interval_minutes`) and manually via "Check quotas" in `opencode auth login`. The threshold check uses `soft_quota_cache_ttl_minutes` to determine cache freshness - if cache is older, the account is considered "unknown" and allowed (fail-open). When ALL accounts exceed the threshold, the plugin waits for the earliest quota reset time (like rate limit behavior). If wait time exceeds `max_rate_limit_wait_seconds`, it errors immediately.
+> **Cara kerja**: Cache quota direfresh otomatis setelah API request sukses (saat lebih tua dari `quota_refresh_interval_minutes`) dan manual via menu "Check quotas" di `opencode auth login`. Threshold check memakai `soft_quota_cache_ttl_minutes` untuk menilai freshness cache — jika cache sudah stale, akun dianggap "unknown" dan tetap diizinkan (fail-open). Jika SEMUA akun melewati threshold, plugin akan menunggu reset quota terdekat (mirip perilaku rate limit). Jika waktu tunggu melebihi `max_rate_limit_wait_seconds`, request akan gagal cepat.
 
-### Rate Limit Scheduling
+### Scheduling Rate Limit
 
-Control how the plugin handles rate limits:
+Kontrol bagaimana plugin menangani rate limit:
 
-| Option | Default | What it does |
-|--------|---------|--------------|
-| `scheduling_mode` | `"cache_first"` | `"cache_first"` = wait for same account (preserves prompt cache), `"balance"` = switch immediately, `"performance_first"` = round-robin |
-| `max_cache_first_wait_seconds` | `60` | Max seconds to wait in cache_first mode before switching accounts |
-| `failure_ttl_seconds` | `3600` | Reset failure count after this many seconds (prevents old failures from permanently penalizing accounts) |
+| Option | Default | Fungsi |
+|--------|---------|--------|
+| `scheduling_mode` | `"cache_first"` | `"cache_first"` = tunggu akun yang sama (menjaga prompt cache), `"balance"` = langsung switch, `"performance_first"` = round-robin |
+| `max_cache_first_wait_seconds` | `60` | Waktu tunggu maksimum pada mode cache_first sebelum pindah akun |
+| `failure_ttl_seconds` | `3600` | Reset failure count setelah durasi ini (mencegah penalti permanen akibat error lama) |
 
-**When to use each mode:**
-- **cache_first** (default): Best for long conversations. Waits for the same account to recover, preserving your prompt cache.
-- **balance**: Best for quick tasks. Switches accounts immediately when rate-limited for maximum availability.
-- **performance_first**: Best for many short requests. Distributes load evenly across all accounts.
+**Kapan pakai mode tertentu:**
+- **cache_first** (default): terbaik untuk percakapan panjang; prompt cache lebih terjaga.
+- **balance**: cocok untuk tugas cepat; switch akun segera saat kena rate limit.
+- **performance_first**: cocok untuk banyak request pendek; distribusi beban lebih merata.
 
-### App Behavior
+### Perilaku Aplikasi
 
-| Option | Default | What it does |
-|--------|---------|--------------|
-| `quiet_mode` | `false` | Hide toast notifications |
-| `debug` | `false` | Enable debug logging |
+| Option | Default | Fungsi |
+|--------|---------|--------|
+| `quiet_mode` | `false` | Sembunyikan notifikasi toast |
+| `debug` | `false` | Aktifkan debug logging |
 | `auto_update` | `true` | Auto-update plugin |
 
-For all options, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+Untuk semua opsi, lihat [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 **Environment variables:**
 ```bash
@@ -662,91 +670,66 @@ OPENCODE_ANTIGRAVITY_DEBUG=2 opencode         # Verbose logging
 
 ## Troubleshooting
 
-See the full [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for solutions to common issues including:
+Lihat [Troubleshooting Guide](docs/TROUBLESHOOTING.md) untuk daftar solusi lengkap, termasuk:
 
-- Auth problems and token refresh
-- "Model not found" errors
+- Masalah auth dan refresh token
+- Error "Model not found"
 - Session recovery
-- Gemini CLI permission errors
-- Safari OAuth issues
-- Plugin compatibility
-- Migration guides
+- Permission error di Gemini CLI
+- OAuth issue di Safari
+- Kompatibilitas plugin
+- Panduan migrasi
 
 ---
 
-## Documentation
+## Dokumentasi
 
-- [Configuration](docs/CONFIGURATION.md) — All configuration options
-- [Multi-Account](docs/MULTI-ACCOUNT.md) — Load balancing, dual quota pools, account storage
-- [Model Variants](docs/MODEL-VARIANTS.md) — Thinking budgets and variant system
-- [Troubleshooting](docs/TROUBLESHOOTING.md) — Common issues and fixes
-- [Architecture](docs/ARCHITECTURE.md) — How the plugin works
-- [API Spec](docs/ANTIGRAVITY_API_SPEC.md) — Antigravity API reference
+- [Configuration](docs/CONFIGURATION.md) — Semua opsi konfigurasi
+- [Multi-Account](docs/MULTI-ACCOUNT.md) — Load balancing, dual quota pools, storage akun
+- [Model Variants](docs/MODEL-VARIANTS.md) — Budget thinking dan sistem variant
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — Masalah umum dan solusinya
+- [Architecture](docs/ARCHITECTURE.md) — Cara kerja plugin
+- [API Spec](docs/ANTIGRAVITY_API_SPEC.md) — Referensi API Antigravity
 
 ---
 
-## Support & Community
- 
-If this plugin helps your workflow, consider supporting its development:
- 
-### 🇮🇩 Indonesia / ASEAN (QRIS)
- 
-- **[Saweria](https://saweria.co/andyvandaric)** (Recommended for one-off support)
-- **[Trakteer](https://trakteer.id/andyvandaric)** (For recurring support / exclusive content)
- 
-### 🌍 International
- 
-- **[Ko-fi](https://ko-fi.com/andyvandaric)** (PayPal / Card)
-- **[GitHub Sponsors](https://github.com/sponsors/andyvandaric)**
- 
----
- 
 ## Credits
 
-This project is built upon the work of incredible developers:
+Project ini dibangun di atas kontribusi para developer berikut:
 
-- **[jenslys](https://github.com/jenslys)** - Original creator of [opencode-gemini-auth](https://github.com/jenslys/opencode-gemini-auth) (Basis for Gemini CLI auth).
-- **[NoeFabris](https://github.com/NoeFabris)** - Added Antigravity support in [opencode-antigravity-auth](https://github.com/NoeFabris/opencode-antigravity-auth) (Multi-account support).
+- **[jenslys](https://github.com/jenslys)** - Creator asli [opencode-gemini-auth](https://github.com/jenslys/opencode-gemini-auth) (fondasi auth Gemini CLI).
+- **[NoeFabris](https://github.com/NoeFabris)** - Menambahkan dukungan Antigravity di [opencode-antigravity-auth](https://github.com/NoeFabris/opencode-antigravity-auth) (dukungan multi-akun).
 - **[Andy Vandaric](https://github.com/andyvandaric)** - **Enhanced Protection & Stability**:
-  - **Strict Quota Protocol**: Custom safety algorithm with **70% usage threshold** (30% safety buffer). Accounts are strictly locked until their specific reset time passes, preventing "leaky" usage from cache expiry.
-  - **Oh-My-OpenCode Integration**: Full session recovery for tool crashes and thinking block errors.
-  - **Enterprise Feat**: Proxy support via `undici`.
-  - **UX/Fixes**: Interactive quota pause and Cloud Code API header fixes.
-
-### Community Contributors
-- **[aaronsewall](https://github.com/aaronsewall)** - Added HTTP/HTTPS proxy support (#301).
-- **[sunbos](https://github.com/sunbos)** - Logic for Oh-My-OpenCode integration (#349).
-- **[m2m6vrm5fp-source](https://github.com/m2m6vrm5fp-source)** - Fixed Gemini 400 errors for empty properties (#319).
-- **[jcromero](https://github.com/jcromero)** - Added interactive pause feature (#443).
-- **[mynameistito](https://github.com/mynameistito)** - Cleaned up deprecated models (#437).
-
-Special thanks to [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI).
+  - **Strict Quota Protocol**: algoritma safety dengan threshold pemakaian **70%** (buffer aman 30%). Akun dikunci ketat sampai reset time spesifiknya lewat.
+  - **Oh-My-OpenCode Integration**: session recovery penuh untuk crash tool dan error thinking block.
+  - **Enterprise Feat**: dukungan proxy via `undici`.
+  - **UX/Fixes**: interactive quota pause dan perbaikan header Cloud Code API.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License. Lihat [LICENSE](LICENSE) untuk detail.
 
 <details>
 <summary><b>Legal</b></summary>
 
 ### Intended Use
 
-- Personal / internal development only
-- Respect internal quotas and data handling policies
-- Not for production services or bypassing intended limits
+- Hanya untuk pengembangan personal / internal
+- Tetap patuhi kebijakan quota dan penanganan data internal
+- Bukan untuk layanan produksi atau bypass batasan yang berlaku
 
 ### Warning
 
-By using this plugin, you acknowledge:
+Dengan menggunakan plugin ini, Anda memahami bahwa:
 
-- **Terms of Service risk** — This approach may violate ToS of AI model providers
-- **Account risk** — Providers may suspend or ban accounts
-- **No guarantees** — APIs may change without notice
-- **Assumption of risk** — You assume all legal, financial, and technical risks
+- **Risiko Terms of Service** — Pendekatan ini dapat melanggar ToS penyedia model AI
+- **Risiko akun** — Penyedia dapat melakukan suspend atau ban akun
+- **Tanpa jaminan** — API dapat berubah kapan saja tanpa pemberitahuan
+- **Asumsi risiko** — Seluruh risiko hukum, finansial, dan teknis menjadi tanggung jawab pengguna
 
 ### Disclaimer
 
-- Not affiliated with Google. This is an independent open-source project.
-- "Antigravity", "Gemini", "Google Cloud", and "Google" are trademarks of Google LLC.
+- Tidak berafiliasi dengan Google. Ini adalah proyek open-source independen.
+- "Antigravity", "Gemini", "Google Cloud", dan "Google" adalah merek dagang milik Google LLC.
 
 </details>
