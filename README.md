@@ -1,4 +1,4 @@
-# OpenCode AG Auth (Antigravity Guard)
+# OpenCode Auth AG New
 
 [![GitHub release](https://img.shields.io/github/v/release/tamaproject360/opencode-auth-ag-new.svg)](https://github.com/tamaproject360/opencode-auth-ag-new/releases/latest)
 [![GitHub issues](https://img.shields.io/github/issues/tamaproject360/opencode-auth-ag-new.svg)](https://github.com/tamaproject360/opencode-auth-ag-new/issues)
