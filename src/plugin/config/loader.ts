@@ -133,6 +133,16 @@ function applyEnvOverrides(config: AntigravityConfig): AntigravityConfig {
         ? true
         : config.quiet_mode,
 
+    // OPENCODE_ANTIGRAVITY_SHOW_ACTIVE_ACCOUNT=1
+    show_active_account:
+      env.OPENCODE_ANTIGRAVITY_SHOW_ACTIVE_ACCOUNT === "1" ||
+      env.OPENCODE_ANTIGRAVITY_SHOW_ACTIVE_ACCOUNT === "true"
+        ? true
+        : env.OPENCODE_ANTIGRAVITY_SHOW_ACTIVE_ACCOUNT === "0" ||
+            env.OPENCODE_ANTIGRAVITY_SHOW_ACTIVE_ACCOUNT === "false"
+          ? false
+          : config.show_active_account,
+
     // OPENCODE_ANTIGRAVITY_DEBUG=1 or any truthy value
     debug: env.OPENCODE_ANTIGRAVITY_DEBUG
       ? env.OPENCODE_ANTIGRAVITY_DEBUG !== "0" &&

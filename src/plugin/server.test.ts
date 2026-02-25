@@ -47,6 +47,19 @@ function setupServer() {
   return server
 }
 
+type MockRequestHandler = (req: unknown, res: unknown) => void
+
+function invokeRequestHandler(
+  handler: MockRequestHandler | null,
+  req: unknown,
+  res: unknown,
+): void {
+  if (!handler) {
+    throw new Error("Mock request handler was not initialized")
+  }
+  handler(req, res)
+}
+
 import { startOAuthListener } from "./server.ts"
 
 describe("startOAuthListener", () => {
@@ -241,10 +254,10 @@ describe("startOAuthListener", () => {
   })
 
   it("waitForCallback resolves when OAuth callback arrives at correct path", async () => {
-    let requestHandler: ((req: unknown, res: unknown) => void) | null = null
+    let requestHandler: MockRequestHandler | null = null
 
     vi.mocked(nodeHttp.createServer).mockImplementationOnce((handler) => {
-      requestHandler = handler as (req: unknown, res: unknown) => void
+      requestHandler = handler as MockRequestHandler
       return getMockServer() as unknown as nodeHttp.Server
     })
 
@@ -257,9 +270,7 @@ describe("startOAuthListener", () => {
     const mockReq = { url: "/oauth/callback?code=auth_code_123&state=state_456" }
     const mockRes = { writeHead: vi.fn(), end: vi.fn() }
 
-    if (requestHandler) {
-      requestHandler(mockReq, mockRes)
-    }
+    invokeRequestHandler(requestHandler, mockReq, mockRes)
 
     const url = await callbackPromise
     expect(url).toBeInstanceOf(URL)
@@ -268,10 +279,10 @@ describe("startOAuthListener", () => {
   })
 
   it("responds 200 with HTML on successful callback path", async () => {
-    let requestHandler: ((req: unknown, res: unknown) => void) | null = null
+    let requestHandler: MockRequestHandler | null = null
 
     vi.mocked(nodeHttp.createServer).mockImplementationOnce((handler) => {
-      requestHandler = handler as (req: unknown, res: unknown) => void
+      requestHandler = handler as MockRequestHandler
       return getMockServer() as unknown as nodeHttp.Server
     })
 
@@ -280,9 +291,7 @@ describe("startOAuthListener", () => {
     const callbackPromise = listener.waitForCallback()
 
     const mockRes = { writeHead: vi.fn(), end: vi.fn() }
-    if (requestHandler) {
-      requestHandler({ url: "/oauth/callback?code=abc" }, mockRes)
-    }
+    invokeRequestHandler(requestHandler, { url: "/oauth/callback?code=abc" }, mockRes)
 
     await callbackPromise
     expect(mockRes.writeHead).toHaveBeenCalledWith(
@@ -292,10 +301,10 @@ describe("startOAuthListener", () => {
   })
 
   it("responds 404 for unknown paths", async () => {
-    let requestHandler: ((req: unknown, res: unknown) => void) | null = null
+    let requestHandler: MockRequestHandler | null = null
 
     vi.mocked(nodeHttp.createServer).mockImplementationOnce((handler) => {
-      requestHandler = handler as (req: unknown, res: unknown) => void
+      requestHandler = handler as MockRequestHandler
       return getMockServer() as unknown as nodeHttp.Server
     })
 
@@ -305,9 +314,7 @@ describe("startOAuthListener", () => {
     const mockReq = { url: "/unknown/path" }
     const mockRes = { writeHead: vi.fn(), end: vi.fn() }
 
-    if (requestHandler) {
-      requestHandler(mockReq, mockRes)
-    }
+    invokeRequestHandler(requestHandler, mockReq, mockRes)
 
     expect(mockRes.writeHead).toHaveBeenCalledWith(
       404,
@@ -319,10 +326,10 @@ describe("startOAuthListener", () => {
   })
 
   it("responds 400 for requests with no URL", async () => {
-    let requestHandler: ((req: unknown, res: unknown) => void) | null = null
+    let requestHandler: MockRequestHandler | null = null
 
     vi.mocked(nodeHttp.createServer).mockImplementationOnce((handler) => {
-      requestHandler = handler as (req: unknown, res: unknown) => void
+      requestHandler = handler as MockRequestHandler
       return getMockServer() as unknown as nodeHttp.Server
     })
 
@@ -332,9 +339,7 @@ describe("startOAuthListener", () => {
     const mockReq = { url: null }
     const mockRes = { writeHead: vi.fn(), end: vi.fn() }
 
-    if (requestHandler) {
-      requestHandler(mockReq, mockRes)
-    }
+    invokeRequestHandler(requestHandler, mockReq, mockRes)
 
     expect(mockRes.writeHead).toHaveBeenCalledWith(400, expect.anything())
     listener.waitForCallback().catch(() => {})
@@ -350,10 +355,10 @@ describe("startOAuthListener", () => {
   })
 
   it("waitForCallback resolves only once even if called multiple times", async () => {
-    let requestHandler: ((req: unknown, res: unknown) => void) | null = null
+    let requestHandler: MockRequestHandler | null = null
 
     vi.mocked(nodeHttp.createServer).mockImplementationOnce((handler) => {
-      requestHandler = handler as (req: unknown, res: unknown) => void
+      requestHandler = handler as MockRequestHandler
       return getMockServer() as unknown as nodeHttp.Server
     })
 
@@ -364,9 +369,7 @@ describe("startOAuthListener", () => {
     const p2 = listener.waitForCallback()
 
     const mockRes = { writeHead: vi.fn(), end: vi.fn() }
-    if (requestHandler) {
-      requestHandler({ url: "/oauth/callback?code=xyz" }, mockRes)
-    }
+    invokeRequestHandler(requestHandler, { url: "/oauth/callback?code=xyz" }, mockRes)
 
     const [url1, url2] = await Promise.all([p1, p2])
     expect(url1).toBeInstanceOf(URL)

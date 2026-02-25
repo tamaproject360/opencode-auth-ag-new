@@ -527,6 +527,41 @@ function extractVerificationErrorDetails(bodyText: string): {
   };
 }
 
+function isLikelyHardForbidden403(
+  bodyText: string,
+  message?: string,
+): boolean {
+  const normalized = decodeEscapedText(
+    `${bodyText}\n${message ?? ""}`,
+  ).toLowerCase();
+
+  if (!normalized.trim()) {
+    return false;
+  }
+
+  // Avoid false positives: quota/rate-limit style 403s should rotate/retry, not disable account.
+  if (
+    normalized.includes("quota") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("too many requests") ||
+    normalized.includes("resource exhausted") ||
+    normalized.includes("model capacity") ||
+    normalized.includes("overloaded")
+  ) {
+    return false;
+  }
+
+  const hardForbiddenSignals: RegExp[] = [
+    /account\s+(?:is|has been)\s+(?:disabled|suspended|terminated|banned)/i,
+    /(?:disabled|suspended|terminated|banned)\s+account/i,
+    /access\s+has\s+been\s+revoked/i,
+    /not\s+(?:allowed|authorized|eligible)\s+to\s+use/i,
+    /violat(?:e|ed|ion).*(?:terms|policy)/i,
+  ];
+
+  return hardForbiddenSignals.some((signal) => signal.test(normalized));
+}
+
 async function verifyAccountAccess(
   account: {
     refreshToken: string;
@@ -1762,6 +1797,47 @@ export const createAntigravityPlugin =
           activeAccountManager = accountManager;
           if (accountManager.getAccountCount() > 0) {
             accountManager.requestSaveToDisk();
+          }
+
+          // Show active account toast after accountManager is ready (respects quiet_mode + toast_scope)
+          if (
+            config.show_active_account &&
+            !config.quiet_mode &&
+            !(config.toast_scope === "root_only" && isChildSession)
+          ) {
+            const claudeAccount = accountManager.getCurrentAccountForFamily("claude");
+            const geminiAccount = accountManager.getCurrentAccountForFamily("gemini");
+            const totalAccounts = accountManager.getAccountCount();
+
+            let accountLine = "";
+            if (
+              claudeAccount &&
+              geminiAccount &&
+              claudeAccount.index !== geminiAccount.index
+            ) {
+              const claudeLabel = claudeAccount.email ?? `Account ${claudeAccount.index + 1}`;
+              const geminiLabel = geminiAccount.email ?? `Account ${geminiAccount.index + 1}`;
+              accountLine = `Claude: ${claudeLabel}\nGemini: ${geminiLabel}`;
+            } else {
+              const account = claudeAccount ?? geminiAccount;
+              if (account) {
+                const label = account.email ?? `Account ${account.index + 1}`;
+                accountLine = `Active: ${label}`;
+              }
+            }
+
+            if (accountLine) {
+              const suffix = totalAccounts > 1 ? ` (${totalAccounts} accounts)` : "";
+              client.tui
+                .showToast({
+                  body: {
+                    title: `Antigravity Auth${suffix}`,
+                    message: accountLine,
+                    variant: "info",
+                  },
+                })
+                .catch(() => {});
+            }
           }
 
           // Initialize proactive token refresh queue (ported from LLM-API-Key-Proxy)
@@ -3083,50 +3159,67 @@ export const createAntigravityPlugin =
                           break;
                         }
 
-                        const forbiddenReason =
-                          extracted.message ??
-                          "Access forbidden (403). Account may be restricted or banned.";
-                        const cooldownMs = 30 * 60 * 1000;
+                        if (
+                          isLikelyHardForbidden403(
+                            errorBodyText,
+                            extracted.message,
+                          )
+                        ) {
+                          const forbiddenReason =
+                            extracted.message ??
+                            "Access forbidden (403). Account may be restricted or banned.";
+                          const cooldownMs = 30 * 60 * 1000;
 
-                        accountManager.markAccountForbidden(
-                          account.index,
-                          forbiddenReason,
-                        );
-                        accountManager.markAccountCoolingDown(
-                          account,
-                          cooldownMs,
-                          "auth-failure",
-                        );
-
-                        const label = account.email || `Account ${account.index + 1}`;
-                        if (accountManager.shouldShowAccountToast(account.index, 60000)) {
-                          await showToast(
-                            `⛔ ${label} got 403 forbidden. Account may be restricted/banned and was disabled.`,
-                            "warning",
+                          accountManager.markAccountForbidden(
+                            account.index,
+                            forbiddenReason,
                           );
-                          accountManager.markToastShown(account.index);
+                          accountManager.markAccountCoolingDown(
+                            account,
+                            cooldownMs,
+                            "auth-failure",
+                          );
+
+                          const label =
+                            account.email || `Account ${account.index + 1}`;
+                          if (
+                            accountManager.shouldShowAccountToast(
+                              account.index,
+                              60000,
+                            )
+                          ) {
+                            await showToast(
+                              `⛔ ${label} got a hard 403 auth block and was disabled.`,
+                              "warning",
+                            );
+                            accountManager.markToastShown(account.index);
+                          }
+
+                          pushDebug(
+                            `forbidden-403: disabled account ${account.index}`,
+                          );
+                          getHealthTracker().recordFailure(account.index);
+
+                          lastFailure = {
+                            response,
+                            streaming: prepared.streaming,
+                            debugContext,
+                            requestedModel: prepared.requestedModel,
+                            projectId: prepared.projectId,
+                            endpoint: prepared.endpoint,
+                            effectiveModel: prepared.effectiveModel,
+                            sessionId: prepared.sessionId,
+                            toolDebugMissing: prepared.toolDebugMissing,
+                            toolDebugSummary: prepared.toolDebugSummary,
+                            toolDebugPayload: prepared.toolDebugPayload,
+                          };
+                          shouldSwitchAccount = true;
+                          break;
                         }
 
                         pushDebug(
-                          `forbidden-403: disabled account ${account.index}`,
+                          `forbidden-403: account ${account.index} not auto-disabled (no hard-forbidden signal)`,
                         );
-                        getHealthTracker().recordFailure(account.index);
-
-                        lastFailure = {
-                          response,
-                          streaming: prepared.streaming,
-                          debugContext,
-                          requestedModel: prepared.requestedModel,
-                          projectId: prepared.projectId,
-                          endpoint: prepared.endpoint,
-                          effectiveModel: prepared.effectiveModel,
-                          sessionId: prepared.sessionId,
-                          toolDebugMissing: prepared.toolDebugMissing,
-                          toolDebugSummary: prepared.toolDebugSummary,
-                          toolDebugPayload: prepared.toolDebugPayload,
-                        };
-                        shouldSwitchAccount = true;
-                        break;
                       }
 
                       const shouldRetryEndpoint =
