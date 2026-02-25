@@ -88,6 +88,15 @@ export const AntigravityConfigSchema = z.object({
   quiet_mode: z.boolean().default(false),
 
   /**
+   * Show a toast notification at session start displaying the active account.
+   * Displays which Google account (email) is currently being used for Antigravity/Gemini requests.
+   * Useful when managing multiple accounts to quickly identify the active one.
+   * Env override: OPENCODE_ANTIGRAVITY_SHOW_ACTIVE_ACCOUNT=1
+   * @default true
+   */
+  show_active_account: z.boolean().default(true),
+
+  /**
    * Control which sessions show toast notifications.
    *
    * - `root_only` (default): Only root sessions show toasts.
@@ -456,6 +465,7 @@ export type SignatureCacheConfig = z.infer<typeof SignatureCacheConfigSchema>;
  */
 export const DEFAULT_CONFIG: AntigravityConfig = {
   quiet_mode: false,
+  show_active_account: true,
   toast_scope: "root_only",
   debug: false,
   debug_tui: false,
