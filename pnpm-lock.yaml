@@ -12,8 +12,8 @@ importers:
         specifier: ^0.4.3
         version: 0.4.3(arctic@2.3.4)(hono@4.11.9)
       '@opencode-ai/plugin':
-        specifier: ^0.15.30
-        version: 0.15.31
+        specifier: ^1.2.12
+        version: 1.2.12
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
@@ -259,11 +259,11 @@ packages:
       arctic: ^2.2.2
       hono: ^4.0.0
 
-  '@opencode-ai/plugin@0.15.31':
-    resolution: {integrity: sha512-htKKCq9Htljf7vX5ANLDB7bU7TeJYrl8LP2CQUtCAguKUpVvpj5tiZ+edlCdhGFEqlpSp+pkiTEY5LCv1muowg==}
+  '@opencode-ai/plugin@1.2.12':
+    resolution: {integrity: sha512-7JI/Non1P87P73GKEGBaC6VjStTW8eCevXN0MyG+quxyA8VgnJhutgSmkRKj+3hFI8ASC52TVYJUBOsurA9Utg==}
 
-  '@opencode-ai/sdk@0.15.31':
-    resolution: {integrity: sha512-95HWBiNKQnwsubkR2E7QhBD/CH9yteZGrviWar0aKHWu8/RjWw9m7Znbv8DI+y6i2dMwBBcGQ8LJ7x0abzys4A==}
+  '@opencode-ai/sdk@1.2.12':
+    resolution: {integrity: sha512-j5yVFoGvT3FVWJrZPWHgUcoDl38bB8gZF5NJ30PeqDPoS6kEfFIS4LzJmibNxD/rRM79C5KKgnQAQNet8JB8CQ==}
 
   '@oslojs/asn1@1.0.0':
     resolution: {integrity: sha512-zw/wn0sj0j0QKbIXfIlnEcTviaCzYOY3V5rAyjR6YtOByFtJiT574+8p9Wlach0lZH9fddD4yb9laEAIl4vXQA==}
@@ -1070,12 +1070,12 @@ snapshots:
       hono: 4.11.9
       jose: 5.9.6
 
-  '@opencode-ai/plugin@0.15.31':
+  '@opencode-ai/plugin@1.2.12':
     dependencies:
-      '@opencode-ai/sdk': 0.15.31
+      '@opencode-ai/sdk': 1.2.12
       zod: 4.1.8
 
-  '@opencode-ai/sdk@0.15.31': {}
+  '@opencode-ai/sdk@1.2.12': {}
 
   '@oslojs/asn1@1.0.0':
     dependencies:

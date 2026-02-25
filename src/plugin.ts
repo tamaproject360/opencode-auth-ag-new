@@ -1609,6 +1609,12 @@ export const createAntigravityPlugin =
         // Track if this is a child session (subagent, background task)
         // This is used to filter toasts based on toast_scope config
         if (input.event.type === "session.created") {
+          // Debug: unconditional toast to verify event handler works
+          (client.tui.showToast as any)({
+            title: "🔌 Antigravity Plugin Active",
+            message: `Accounts loaded: ${activeAccountManager?.getAccountCount() ?? 0}`,
+            variant: "info",
+          }).catch(() => { });
           const props = input.event.properties as
             | { info?: { id?: string; parentID?: string } }
             | undefined;
@@ -1662,13 +1668,11 @@ export const createAntigravityPlugin =
 
             if (accountLine) {
               const suffix = totalAccounts > 1 ? ` (${totalAccounts} accounts)` : "";
-              client.tui
-                .showToast({
-                  body: {
-                    title: `Antigravity Auth${suffix}`,
-                    message: accountLine,
-                    variant: "info",
-                  },
+              (client.tui
+                .showToast as any)({
+                  title: `Antigravity Auth${suffix}`,
+                  message: accountLine,
+                  variant: "info",
                 })
                 .catch(() => { });
             }
@@ -1716,13 +1720,11 @@ export const createAntigravityPlugin =
                 toastScope: config.toast_scope,
               });
               if (!(config.toast_scope === "root_only" && isChildSession)) {
-                await client.tui
-                  .showToast({
-                    body: {
-                      title: successToast.title,
-                      message: successToast.message,
-                      variant: "success",
-                    },
+                await (client.tui
+                  .showToast as any)({
+                    title: successToast.title,
+                    message: successToast.message,
+                    variant: "success",
                   })
                   .catch(() => { });
               }
@@ -1841,15 +1843,11 @@ export const createAntigravityPlugin =
               accountManager.requestSaveToDisk();
             }
 
-            // Show active account toast after accountManager is ready (respects quiet_mode + toast_scope)
-            if (
-              config.show_active_account &&
-              !config.quiet_mode &&
-              !(config.toast_scope === "root_only" && isChildSession)
-            ) {
+            // Show active account toast with delay (TUI needs time to initialize)
+            setTimeout(() => {
+              const totalAccounts = accountManager.getAccountCount();
               const claudeAccount = accountManager.getCurrentAccountForFamily("claude");
               const geminiAccount = accountManager.getCurrentAccountForFamily("gemini");
-              const totalAccounts = accountManager.getAccountCount();
 
               let accountLine = "";
               if (
@@ -1868,19 +1866,19 @@ export const createAntigravityPlugin =
                 }
               }
 
-              if (accountLine) {
+              if (accountLine && totalAccounts > 0) {
                 const suffix = totalAccounts > 1 ? ` (${totalAccounts} accounts)` : "";
                 client.tui
                   .showToast({
                     body: {
-                      title: `Antigravity Auth${suffix}`,
+                      title: `🔐 Antigravity Auth${suffix}`,
                       message: accountLine,
                       variant: "info",
                     },
                   })
                   .catch(() => { });
               }
-            }
+            }, 3000);
 
             // Initialize proactive token refresh queue (ported from LLM-API-Key-Proxy)
             let refreshQueue: ProactiveRefreshQueue | null = null;
@@ -1902,8 +1900,8 @@ export const createAntigravityPlugin =
               const logPath = getLogFilePath();
               if (logPath) {
                 try {
-                  await client.tui.showToast({
-                    body: { message: `Debug log: ${logPath}`, variant: "info" },
+                  await (client.tui.showToast as any)({
+                    message: `Debug log: ${logPath}`, variant: "info",
                   });
                 } catch {
                   // TUI may not be available
@@ -2015,8 +2013,8 @@ export const createAntigravityPlugin =
                   }
 
                   try {
-                    await client.tui.showToast({
-                      body: { message, variant },
+                    await (client.tui.showToast as any)({
+                      message, variant,
                     });
                   } catch {
                     // TUI may not be available
@@ -2658,12 +2656,10 @@ export const createAntigravityPlugin =
                         // Proactive context overflow guard: return synthetic error before wasting a round-trip
                         if (prepared.contextOverflowResponse) {
                           if (!(config.toast_scope === "root_only" && isChildSession)) {
-                            await client.tui.showToast({
-                              body: {
-                                title: "Auto-Compacting Context",
-                                message: "Context too long. Auto-compacting now...",
-                                variant: "warning",
-                              },
+                            await (client.tui.showToast as any)({
+                              title: "Auto-Compacting Context",
+                              message: "Context too long. Auto-compacting now...",
+                              variant: "warning",
                             }).catch(() => { });
                           }
 
@@ -4385,11 +4381,9 @@ export const createAntigravityPlugin =
                     accounts.push(result);
 
                     try {
-                      await client.tui.showToast({
-                        body: {
-                          message: `Account ${accounts.length} authenticated${result.email ? ` (${result.email})` : ""}`,
-                          variant: "success",
-                        },
+                      await (client.tui.showToast as any)({
+                        message: `Account ${accounts.length} authenticated${result.email ? ` (${result.email})` : ""}`,
+                        variant: "success",
                       });
                     } catch { }
 
@@ -4596,11 +4590,9 @@ export const createAntigravityPlugin =
                                 : `Authenticated${result.email ? ` (${result.email})` : ""}`;
 
                             try {
-                              await client.tui.showToast({
-                                body: {
-                                  message: toastMessage,
-                                  variant: "success",
-                                },
+                              await (client.tui.showToast as any)({
+                                message: toastMessage,
+                                variant: "success",
                               });
                             } catch { }
                           }
@@ -4659,11 +4651,9 @@ export const createAntigravityPlugin =
                           : `Authenticated${result.email ? ` (${result.email})` : ""}`;
 
                       try {
-                        await client.tui.showToast({
-                          body: {
-                            message: toastMessage,
-                            variant: "success",
-                          },
+                        await (client.tui.showToast as any)({
+                          message: toastMessage,
+                          variant: "success",
                         });
                       } catch {
                         // TUI may not be available
