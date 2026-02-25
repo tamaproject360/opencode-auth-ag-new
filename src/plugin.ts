@@ -1843,6 +1843,57 @@ export const createAntigravityPlugin =
               accountManager.requestSaveToDisk();
             }
 
+            // === DEBUG: Write file to prove loader runs ===
+            const debugInfo = {
+              timestamp: new Date().toISOString(),
+              accountCount: accountManager.getAccountCount(),
+              tuiType: typeof client.tui,
+              showToastType: typeof client.tui?.showToast,
+              tuiKeys: Object.keys(client.tui || {}),
+            };
+            try {
+              const fs = await import("node:fs");
+              fs.writeFileSync(
+                "C:\\Users\\harri\\.config\\opencode\\antigravity-debug.json",
+                JSON.stringify(debugInfo, null, 2),
+              );
+            } catch (e) {
+              // ignore
+            }
+
+            // showToast hangs when awaited - test with timeout
+            const toastErrors: Record<string, string> = {};
+            const raceTimeout = (p: Promise<any>, ms: number) =>
+              Promise.race([
+                p.then(() => "SUCCESS").catch((e: any) => `ERROR: ${e?.message || e}`),
+                new Promise<string>((r) => setTimeout(() => r("TIMEOUT"), ms)),
+              ]);
+
+            // Test v1 format (body wrapper)
+            toastErrors["v1"] = await raceTimeout(
+              (client.tui.showToast as any)({
+                body: { title: "v1 Test", message: "v1 format", variant: "info" },
+              }),
+              3000,
+            );
+            // Test v2 format (flat params)
+            toastErrors["v2"] = await raceTimeout(
+              (client.tui.showToast as any)({
+                title: "v2 Test",
+                message: "v2 format",
+                variant: "info",
+              }),
+              3000,
+            );
+            // Write debug result
+            try {
+              const fs2 = await import("node:fs");
+              fs2.writeFileSync(
+                "C:\\Users\\harri\\.config\\opencode\\antigravity-toast-debug.json",
+                JSON.stringify(toastErrors, null, 2),
+              );
+            } catch { }
+
             // Show active account toast with delay (TUI needs time to initialize)
             setTimeout(() => {
               const totalAccounts = accountManager.getAccountCount();
